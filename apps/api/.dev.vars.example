@@ -1,0 +1,17 @@
+# Copy to .dev.vars for local development. .dev.vars is gitignored.
+# In production, use `wrangler secret put <NAME>` instead.
+
+JWT_SECRET=dev-only-change-me-to-a-random-32-byte-string
+
+# AI providers. Leave empty to disable; Phase 3+ routes will 503 without keys.
+OPENAI_API_KEY=
+ANTHROPIC_API_KEY=
+
+# Model selection, format: "<provider>/<model>". Leave blank for defaults.
+# Defaults (per TECH.md):
+#   AI_MODEL_CHAT     = openai/gpt-4o-mini     (onboarding + real-time adjustments)
+#   AI_MODEL_PLANNING = anthropic/claude-3-5-sonnet-latest   (workout generation)
+#   AI_MODEL_VISION   = openai/gpt-4o          (equipment photo ID)
+AI_MODEL_CHAT=
+AI_MODEL_PLANNING=
+AI_MODEL_VISION=

@@ -1,0 +1,21 @@
+name = "mai-fitness-api"
+main = "src/index.ts"
+compatibility_date = "2025-01-15"
+compatibility_flags = ["nodejs_compat"]
+
+# D1 database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "mai-db"
+database_id = "00000000-0000-0000-0000-000000000000" # placeholder; set real id after `wrangler d1 create mai-db`
+migrations_dir = "migrations"
+
+# Non-secret vars. Secrets (JWT_SECRET, API keys) are set via `wrangler secret put`
+# or in .dev.vars for local dev.
+[vars]
+GOOGLE_CLIENT_ID = "REPLACE_WITH_GOOGLE_OAUTH_WEB_CLIENT_ID"
+ALLOWED_ORIGINS = "http://localhost:8081,http://localhost:19006,https://auth.expo.io"
+
+# Observability
+[observability]
+enabled = true

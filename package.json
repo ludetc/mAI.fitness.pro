@@ -1,0 +1,18 @@
+{
+  "name": "mai-fitness-pro",
+  "version": "0.0.1",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev -w @mai/api",
+    "dev:mobile": "npm run start -w @mai/mobile",
+    "typecheck": "npm run typecheck -w @mai/shared && npm run typecheck -w @mai/api && npm run typecheck -w @mai/mobile",
+    "migrate:local": "npm run migrate:local -w @mai/api"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
