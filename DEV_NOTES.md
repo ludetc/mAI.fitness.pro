@@ -15,6 +15,26 @@ Template:
 
 ---
 
+## 2026-04-22 — add-next-steps-resume-checklist
+
+**What:**
+- Added `NEXT_STEPS.md` at repo root — a standalone, checkbox-driven resume-from-here checklist covering: current state snapshot, Google Cloud OAuth setup, wiring the Web client ID into `wrangler.toml`, populating `apps/mobile/.env` with all three client IDs, launching the app, walking through the end-to-end product flow, and a debug table for common failure modes.
+
+**Why:**
+User is pausing; wants a self-contained doc to pick up from next session without re-reading the conversation. The information already lived in chat and partially in `SETUP.md §2`, but a focused, stateful "resume here" file is easier to execute against than a reference doc. Designed to be deleted after the user completes Step 5 (end-to-end product walkthrough succeeds).
+
+**Follow-ups:**
+- Deliberately didn't fold this into `SETUP.md` — SETUP is contributor-facing and stable; this is a personal checklist for this specific handoff moment.
+- The SHA-1 fingerprint for Android OAuth is the generic Expo Go dev fingerprint — if the user later moves to a custom dev build, they'll need their own SHA-1 (different doc moment).
+- Debug table is shallow; if real errors come up we'll enrich it or move the content into `SETUP.md`'s troubleshooting section.
+
+**Verification:**
+- File cross-links all resolve: `ROADMAP.md §1`, `DEV_NOTES.md` anchors, `SETUP.md`.
+- No secrets.
+- `npm run typecheck` still passes (docs-only).
+
+---
+
 ## 2026-04-22 — github-friendly-repo-layout-plus-roadmap
 
 **What:**
