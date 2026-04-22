@@ -1,3 +1,4 @@
+import * as Haptics from "expo-haptics";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -47,6 +48,7 @@ export default function SessionScreen() {
   const [loading, setLoading] = useState(true);
   const [finishing, setFinishing] = useState(false);
   const [adjustOpen, setAdjustOpen] = useState(false);
+  const [restSecondsLeft, setRestSecondsLeft] = useState(0);
 
   const persistedExercisesRef = useRef<ExerciseLog[] | null>(null);
 
@@ -85,6 +87,14 @@ export default function SessionScreen() {
     };
   }, [params.sessionId, params.planId, params.index, router]);
 
+  useEffect(() => {
+    if (restSecondsLeft <= 0) return;
+    const t = setInterval(() => {
+      setRestSecondsLeft((s) => (s <= 1 ? 0 : s - 1));
+    }, 1000);
+    return () => clearInterval(t);
+  }, [restSecondsLeft]);
+
   const exercises = session?.exercises ?? [];
   const current = exercises[currentIndex];
 
@@ -106,11 +116,14 @@ export default function SessionScreen() {
   const logSet = useCallback(
     (set: SetLog) => {
       if (!session) return;
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       const next = exercises.map((e, i) =>
         i === currentIndex ? { ...e, sets: [...e.sets, set] } : e,
       );
       setSession({ ...session, exercises: next });
       void persistIfChanged(next);
+      const currentEx = next[currentIndex];
+      if (currentEx) setRestSecondsLeft(currentEx.plannedRestSeconds);
     },
     [session, exercises, currentIndex, persistIfChanged],
   );
@@ -133,12 +146,14 @@ export default function SessionScreen() {
     );
     setSession({ ...session, exercises: next });
     void persistIfChanged(next);
+    setRestSecondsLeft(0);
     if (currentIndex < exercises.length - 1) setCurrentIndex(currentIndex + 1);
   }, [session, exercises, currentIndex, persistIfChanged]);
 
   const applyAdjust = useCallback(
     (suggestion: Exercise, originalName: string) => {
       if (!session) return;
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       const next = exercises.map((e, i) =>
         i === currentIndex
           ? {
@@ -163,20 +178,17 @@ export default function SessionScreen() {
     if (!session) return;
     setFinishing(true);
     try {
-      await completeSession(session.id);
-      Alert.alert("Done", "Session logged.", [
-        {
-          text: "Back to plan",
-          onPress: () => router.replace("/(app)"),
-        },
-      ]);
+      const res = await completeSession(session.id);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setSession(res.session);
+      setRestSecondsLeft(0);
     } catch (err) {
       const message = err instanceof Error ? err.message : "could not finish";
       Alert.alert("Could not finish", message);
     } finally {
       setFinishing(false);
     }
-  }, [session, router]);
+  }, [session]);
 
   if (loading || !session || !plannedSession || !current) {
     return (
@@ -184,6 +196,10 @@ export default function SessionScreen() {
         <ActivityIndicator color={colors.accent} />
       </View>
     );
+  }
+
+  if (session.completedAt) {
+    return <SessionSummary session={session} onDone={() => router.replace("/(app)")} />;
   }
 
   return (
@@ -201,6 +217,13 @@ export default function SessionScreen() {
           Exercise {currentIndex + 1} of {exercises.length}
         </Text>
 
+        {restSecondsLeft > 0 ? (
+          <RestTimerBanner
+            secondsLeft={restSecondsLeft}
+            onSkip={() => setRestSecondsLeft(0)}
+          />
+        ) : null}
+
         <ExerciseFocus
           exercise={current}
           onSwap={() => setAdjustOpen(true)}
@@ -212,13 +235,19 @@ export default function SessionScreen() {
         <ExerciseList
           exercises={exercises}
           currentIndex={currentIndex}
-          onTap={(i) => setCurrentIndex(i)}
+          onTap={(i) => {
+            setCurrentIndex(i);
+            setRestSecondsLeft(0);
+          }}
         />
 
         <View style={styles.footer}>
           {currentIndex < exercises.length - 1 ? (
             <Pressable
-              onPress={() => setCurrentIndex(currentIndex + 1)}
+              onPress={() => {
+                setCurrentIndex(currentIndex + 1);
+                setRestSecondsLeft(0);
+              }}
               style={({ pressed }) => [styles.primary, pressed && styles.primaryPressed]}
             >
               <Text style={styles.primaryText}>Next exercise</Text>
@@ -262,6 +291,26 @@ function firstIncompleteIndex(exercises: ExerciseLog[]): number {
     if (!e.skipped && e.sets.length < e.plannedSets) return i;
   }
   return Math.max(0, exercises.length - 1);
+}
+
+function RestTimerBanner({
+  secondsLeft,
+  onSkip,
+}: {
+  secondsLeft: number;
+  onSkip: () => void;
+}) {
+  const label = secondsLeft >= 60 ? `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}` : `${secondsLeft}s`;
+  return (
+    <Pressable
+      onPress={onSkip}
+      style={({ pressed }) => [styles.restBanner, pressed && styles.restBannerPressed]}
+    >
+      <Text style={styles.restLabel}>Rest</Text>
+      <Text style={styles.restTime}>{label}</Text>
+      <Text style={styles.restHint}>tap to skip</Text>
+    </Pressable>
+  );
 }
 
 function ExerciseFocus({
@@ -438,6 +487,108 @@ function ExerciseList({
       ))}
     </View>
   );
+}
+
+function SessionSummary({
+  session,
+  onDone,
+}: {
+  session: SessionLog;
+  onDone: () => void;
+}) {
+  const totalSets = session.exercises.reduce((acc, e) => acc + e.sets.length, 0);
+  const totalPlannedSets = session.exercises.reduce((acc, e) => acc + e.plannedSets, 0);
+  const totalReps = session.exercises.reduce(
+    (acc, e) => acc + e.sets.reduce((a, s) => a + s.reps, 0),
+    0,
+  );
+  const totalVolume = session.exercises.reduce(
+    (acc, e) => acc + e.sets.reduce((a, s) => a + (s.weightKg ?? 0) * s.reps, 0),
+    0,
+  );
+  const skippedCount = session.exercises.filter((e) => e.skipped).length;
+  const swappedCount = session.exercises.filter((e) => e.substitutedFor).length;
+  const elapsedMs = (session.completedAt ?? Date.now()) - session.startedAt;
+  const elapsedMin = Math.round(elapsedMs / 60000);
+
+  return (
+    <ScrollView
+      style={styles.root}
+      contentContainerStyle={styles.summaryContent}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.summaryHero}>
+        <Text style={styles.summaryEyebrow}>Session complete</Text>
+        <Text style={styles.summaryTitle}>{session.sessionTitle}</Text>
+        <Text style={styles.summaryTime}>{elapsedMin} min</Text>
+      </View>
+
+      <View style={styles.statsGrid}>
+        <StatTile label="Sets logged" value={`${totalSets}`} hint={`of ${totalPlannedSets}`} />
+        <StatTile label="Total reps" value={`${totalReps}`} />
+        {totalVolume > 0 ? (
+          <StatTile
+            label="Volume"
+            value={`${formatVolume(totalVolume)}`}
+            hint="kg × reps"
+          />
+        ) : null}
+        {swappedCount > 0 ? (
+          <StatTile label="Swapped" value={`${swappedCount}`} hint="exercises" />
+        ) : null}
+        {skippedCount > 0 ? (
+          <StatTile label="Skipped" value={`${skippedCount}`} hint="exercises" />
+        ) : null}
+      </View>
+
+      <View style={styles.breakdownCard}>
+        <Text style={styles.breakdownTitle}>Breakdown</Text>
+        {session.exercises.map((e, i) => (
+          <View key={i} style={styles.breakdownRow}>
+            <View style={styles.breakdownMain}>
+              <Text style={styles.breakdownName}>{e.name}</Text>
+              {e.substitutedFor ? (
+                <Text style={styles.breakdownSub}>swapped from {e.substitutedFor}</Text>
+              ) : null}
+            </View>
+            <Text style={styles.breakdownCounts}>
+              {e.skipped ? "skip" : `${e.sets.length}/${e.plannedSets}`}
+            </Text>
+          </View>
+        ))}
+      </View>
+
+      <Pressable
+        onPress={onDone}
+        style={({ pressed }) => [styles.primary, pressed && styles.primaryPressed]}
+      >
+        <Text style={styles.primaryText}>Back to plan</Text>
+      </Pressable>
+    </ScrollView>
+  );
+}
+
+function StatTile({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+}) {
+  return (
+    <View style={styles.statTile}>
+      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statValue}>{value}</Text>
+      {hint ? <Text style={styles.statHint}>{hint}</Text> : null}
+    </View>
+  );
+}
+
+function formatVolume(v: number): string {
+  if (v >= 1000) return `${Math.round(v / 100) / 10}k`;
+  return `${Math.round(v)}`;
 }
 
 function AdjustSheet({
@@ -622,6 +773,41 @@ const styles = StyleSheet.create({
     marginTop: -4,
     letterSpacing: 0.5,
     textTransform: "uppercase",
+  },
+  restBanner: {
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.warning,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 10,
+  },
+  restBannerPressed: {
+    opacity: 0.7,
+  },
+  restLabel: {
+    color: colors.warning,
+    fontSize: 12,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    fontWeight: "900",
+  },
+  restTime: {
+    color: colors.text,
+    fontSize: 24,
+    fontWeight: "900",
+    letterSpacing: -0.5,
+  },
+  restHint: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "700",
+    marginLeft: "auto",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   focusCard: {
     backgroundColor: colors.surfaceElevated,
@@ -907,5 +1093,109 @@ const styles = StyleSheet.create({
   sheetButtonsRow: {
     flexDirection: "row",
     gap: 10,
+  },
+  summaryContent: {
+    padding: 20,
+    paddingBottom: 40,
+    gap: 16,
+  },
+  summaryHero: {
+    backgroundColor: colors.surfaceElevated,
+    padding: 24,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.success,
+    gap: 6,
+  },
+  summaryEyebrow: {
+    color: colors.success,
+    fontSize: 12,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    fontWeight: "900",
+  },
+  summaryTitle: {
+    color: colors.text,
+    fontSize: 28,
+    fontWeight: "900",
+    letterSpacing: -0.6,
+    marginTop: 2,
+  },
+  summaryTime: {
+    color: colors.textMuted,
+    fontSize: 14,
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  statsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  statTile: {
+    flexBasis: "47%",
+    flexGrow: 1,
+    backgroundColor: colors.surface,
+    padding: 18,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  statLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    fontWeight: "800",
+  },
+  statValue: {
+    color: colors.text,
+    fontSize: 28,
+    fontWeight: "900",
+    marginTop: 6,
+    letterSpacing: -0.5,
+  },
+  statHint: {
+    color: colors.textMuted,
+    fontSize: 11,
+    marginTop: 2,
+    fontWeight: "700",
+  },
+  breakdownCard: {
+    backgroundColor: colors.surface,
+    padding: 18,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 12,
+  },
+  breakdownTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "900",
+    letterSpacing: 0.3,
+    textTransform: "uppercase",
+  },
+  breakdownRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  breakdownMain: { flex: 1 },
+  breakdownName: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  breakdownSub: {
+    color: colors.warning,
+    fontSize: 11,
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  breakdownCounts: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: "800",
   },
 });

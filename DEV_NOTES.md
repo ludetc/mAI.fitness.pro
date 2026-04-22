@@ -15,6 +15,33 @@ Template:
 
 ---
 
+## 2026-04-22 — pass-5-session-runner-polish-rest-timer-summary-haptics
+
+**What:**
+- Installed `expo-haptics` via `npx expo install` (SDK 54 compatible).
+- Rewrote `apps/mobile/app/(app)/session.tsx`:
+  - **Rest timer banner**: shown between the progress subtitle and the focus card whenever `restSecondsLeft > 0`. Auto-set on log-set to the current exercise's `plannedRestSeconds`. Countdown via `setInterval` cleaned up on unmount or when timer hits zero. Tapping the banner clears the timer (for when the user wants to move on early). Cleared automatically when the user switches exercise or skips.
+  - **Post-session summary**: when `session.completedAt` becomes non-null, the runner swaps to a summary view — hero card (green success border), stats grid tiles (sets logged, total reps, total volume, swapped, skipped — skipped/swapped only shown when > 0), per-exercise breakdown with swap-from markers. "Back to plan" button returns home. Replaces the previous Alert-then-navigate flow.
+  - **Haptics**: `Haptics.impactAsync(Light)` on every log-set, `impactAsync(Medium)` on swap-accept, `notificationAsync(Success)` on session complete. Fire-and-forget (no await).
+- `ARCHITECTURE.md` mobile section updated with the new behavior — same file, expanded session.tsx description covering rest timer, summary, and haptics.
+
+**Why:**
+Pass 4 delivered the mechanics — log sets, swap, finish. What was missing is what makes execution *feel* like a workout: the deliberate pause between sets, the tactile "yes, that landed" when you finish a set, and the small hit of closure when the session ends. The rest timer is a functional requirement (users need to rest the prescribed time) but also paces the UI to the workout's actual tempo. The post-session summary replaces a forgettable alert with a moment — totals you can screenshot, see swaps you made, see what you skipped. Haptics are the cheapest UX upgrade in mobile and align with the gritty-premium aesthetic REQs §6 asks for. Alternatives I considered: SFX for set completion (decided against — most gyms are already loud, haptic is enough), animated rep counter (too much motion; timer feels correct for a rest period).
+
+**Follow-ups:**
+- Rest timer does not currently send a notification/sound when it hits zero — just silently disappears. If phone is locked, user doesn't know rest is over. A push via `expo-notifications` scheduled at the start of rest would fix it. Phase 7.
+- Timer state is not persisted — backgrounding the app resets the timer. Acceptable for v1; fixable by recording `restStartedAt` timestamp and computing remaining time on resume.
+- Summary does not include PR (personal record) detection — no history table joins yet. Future: compare to best previous set for the same exercise/reps.
+- Post-session summary isn't addressable via URL (you can't share or re-open it). Future: `/(app)/session?id=X` already renders the summary if completed, but it's not linked from home. A "recent sessions" list on home would surface it.
+- Haptic levels are Light/Medium/Success — subjective; may need tuning after device testing.
+
+**Verification:**
+- `npm run typecheck` across 3 workspaces: passes.
+- No backend changes; no migration needed.
+- **Not verified on device:** haptics only fire on real hardware, not simulator. Timer tested mentally against `setInterval` cleanup semantics; actual interaction (background/foreground, rapid re-taps) untested.
+
+---
+
 ## 2026-04-22 — pass-4-real-time-session-execution
 
 **What:**
