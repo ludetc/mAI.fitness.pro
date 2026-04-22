@@ -60,3 +60,7 @@ export interface AdjustSessionResponse {
   suggestion: Exercise;
   rationale: string;
 }
+
+export interface RecentSessionsResponse {
+  sessions: SessionLog[];
+}

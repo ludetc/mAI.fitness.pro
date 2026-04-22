@@ -2,7 +2,7 @@
 
 Living description of the mAI.fitness.pro system. **Keep this current** — update it in the same commit as any change that alters structure, routes, schema, auth, or external integrations. See `CLAUDE.md` for the rules.
 
-Last structural update: `2026-04-22` (Pass 4: real-time session execution + in-workout swaps).
+Last structural update: `2026-04-22` (Pass 6: dynamic tailoring — planning reads session history).
 
 ---
 
@@ -88,6 +88,7 @@ Root `package.json` wires npm workspaces and top-level scripts (`dev:api`, `dev:
 | PUT | `/sessions/:id` | Bearer | Replace the exercises array (log sets, skip, substitute). 409 if already completed. |
 | POST | `/sessions/:id/complete` | Bearer | Mark the session complete. 409 if already completed. |
 | POST | `/sessions/:id/adjust` | Bearer | Ask the chat provider for a single replacement exercise. Body: `{exerciseIndex, reason, details?}`. Returns `{suggestion, rationale}`. Client applies the swap client-side, then PUTs it back. |
+| GET | `/sessions/recent?limit=N` | Bearer | Returns the last N completed sessions (newest first, default 10, cap 50). Used by the home "Last session" tile and by `/workouts/generate` when building the planning prompt. |
 
 All responses are JSON. Errors use `{ error: <slug>, message?: <string> }` with appropriate HTTP status.
 
@@ -181,6 +182,12 @@ All `EXPO_PUBLIC_*` vars are baked into the bundle — do not put secrets here.
 - **`src/lib/`** — `session.ts` (token storage), `api.ts` (fetch wrapper), `auth.ts` (Google OAuth config), `onboarding.ts` (chat + profile API client), `workouts.ts` (plan API client), `sessions.ts` (session runner API client — note the plural, distinct from token `session.ts`).
 
 ---
+
+## Dynamic tailoring (planning reads session history)
+
+`POST /workouts/generate` fetches up to **6 most recent completed sessions** for the user via `getRecentCompletedSessions` and passes them to `buildPlanningSystemPrompt(profile, recentSessions)`. When `recentSessions.length > 0`, the prompt injects a "Last week's actual performance" block summarising per-exercise `{sets achieved / planned, rep range, avg kg, avg RPE, swapped-from, skipped}` and explicit progression instructions: bump load 5–10% when the athlete hit prescribed sets/reps; hold or reduce on misses; replace consistently-skipped or -swapped movements. The model is instructed to name the progression decision in the plan's `summary`. The user-turn message also shifts from "Generate this week's plan" to "Generate next week's plan, progressing from last week's performance" when history exists.
+
+This is the REQs §4 "Dynamic Tailoring" promise realised: the second (and every subsequent) plan generation is a function of what actually happened, not just the static profile.
 
 ## AI provider abstraction (`apps/api/src/lib/ai/`)
 

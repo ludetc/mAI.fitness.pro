@@ -502,3 +502,21 @@ export async function completeSessionLog(
     .run();
   return (res.meta?.changes ?? 0) > 0;
 }
+
+export async function getRecentCompletedSessions(
+  db: D1Database,
+  userId: string,
+  limit: number,
+): Promise<SessionLog[]> {
+  const safeLimit = Math.max(1, Math.min(50, Math.round(limit)));
+  const res = await db
+    .prepare(
+      "SELECT * FROM session_logs WHERE user_id = ? AND completed_at IS NOT NULL ORDER BY completed_at DESC LIMIT ?",
+    )
+    .bind(userId, safeLimit)
+    .all<SessionLogRow>();
+  const rows = res.results ?? [];
+  return rows
+    .map(rowToSessionLog)
+    .filter((s): s is SessionLog => s !== null);
+}

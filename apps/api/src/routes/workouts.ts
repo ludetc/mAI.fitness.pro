@@ -9,7 +9,12 @@ import type {
 import type { Env, Variables } from "../env.js";
 import { requireAuth } from "../middleware/auth.js";
 import { getProvider } from "../lib/ai/index.js";
-import { createActivePlan, getActivePlan, getProfile } from "../lib/db.js";
+import {
+  createActivePlan,
+  getActivePlan,
+  getProfile,
+  getRecentCompletedSessions,
+} from "../lib/db.js";
 import { buildPlanningSystemPrompt, SAVE_PLAN_TOOL } from "../prompts/planning.js";
 
 export const workoutsRoutes = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -39,12 +44,17 @@ workoutsRoutes.post("/generate", async (c) => {
     );
   }
 
+  const recentSessions = await getRecentCompletedSessions(c.env.DB, user.id, 6);
+
   const result = await provider.chat({
-    system: buildPlanningSystemPrompt(profile),
+    system: buildPlanningSystemPrompt(profile, recentSessions),
     messages: [
       {
         role: "user",
-        content: "Generate this week's plan.",
+        content:
+          recentSessions.length > 0
+            ? "Generate next week's plan, progressing from last week's performance."
+            : "Generate this week's plan.",
       },
     ],
     tools: [SAVE_PLAN_TOOL],

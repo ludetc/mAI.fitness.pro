@@ -3,6 +3,7 @@ import type {
   AdjustSessionResponse,
   CompleteSessionResponse,
   GetSessionResponse,
+  RecentSessionsResponse,
   SessionEnvelope,
   StartSessionRequest,
   StartSessionResponse,
@@ -55,4 +56,8 @@ export function adjustSession(
     `/sessions/${encodeURIComponent(id)}/adjust`,
     { method: "POST", body: JSON.stringify(body) },
   );
+}
+
+export function getRecentSessions(limit = 5): Promise<RecentSessionsResponse> {
+  return api<RecentSessionsResponse>(`/sessions/recent?limit=${limit}`);
 }

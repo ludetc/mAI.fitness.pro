@@ -15,6 +15,36 @@ Template:
 
 ---
 
+## 2026-04-22 — pass-6-dynamic-tailoring-planning-reads-session-history
+
+**What:**
+- **Shared types**: added `RecentSessionsResponse {sessions: SessionLog[]}` to `packages/shared/src/sessions.ts`.
+- **Worker**: `getRecentCompletedSessions(db, userId, limit)` in `src/lib/db.ts` — ordered by `completed_at DESC`, capped at 50. New `GET /sessions/recent?limit=N` route (default 10). Planning prompt (`src/prompts/planning.ts`) now takes `recentSessions: SessionLog[] = []` as a second arg. When non-empty, injects a "Last week's actual performance" block summarising per-exercise `{sets achieved / planned, rep range, avg kg, avg RPE, swapped-from, skipped}` with explicit progression instructions (bump 5–10% on hits, hold/reduce on misses, replace repeatedly-skipped/swapped, lock-in on RPE 8+). Workouts.generate fetches up to 6 recent completed sessions and passes to the builder; the user-turn message shifts to "Generate next week's plan, progressing from last week's performance" when history exists.
+- **Mobile**: `getRecentSessions(limit)` in `src/lib/sessions.ts`. Home screen (`app/(app)/index.tsx`) now fetches plan + active + last session in parallel. New `LastSessionTile` component shown when there's no active session but a completed one exists — title, relative date ("today" / "yesterday" / "Nd ago"), total sets, total volume (auto-shortened to "4.2k kg×reps" above 1000). Tapping navigates to `/session?sessionId=X` which renders the post-session summary view.
+- **ARCHITECTURE.md**: new "Dynamic tailoring" section describing the fetch-then-feed flow; routes table expanded with `/sessions/recent`.
+
+**Why:**
+REQs §4 promises "Every session is adjusted based on the performance and feedback of the previous one." Pass 3 generated plans from a static profile; Pass 4 started logging real data; this pass closes the loop. Chose to read history from `session_logs` rather than a separate "progressions" table because raw logs are the source of truth — any derived signal (progression decision, PR tracking) is a query, not a write. Cap of 6 sessions keeps the prompt short and focuses the model on the current training block, not ancient history. Home tile surfaces the feedback visually so the user sees "something changed" between weeks; without it the progression decision happens silently in the model and the UX feels static.
+
+**Follow-ups:**
+- Real AI round-trip unverified — requires `ANTHROPIC_API_KEY`. Prompt construction verified by unit reasoning; actual prompt-response pairs untested.
+- "Swap adopted into permanent plan" is a heuristic suggestion in the prompt; the model may or may not take it. No hard mechanism that tells the planner "this substitution is now canonical." Could add a `preferences` JSON on users later.
+- PR detection still not surfaced — the summary screen shows current-session volume/reps but doesn't compare to prior best. Small query change for a future pass.
+- `/sessions/recent` has no pagination (just `limit`). Enough for the home tile and the planning context; a history screen would need cursor-based pagination.
+- Home tile shows only the most recent session (`limit=1`). A full "History" screen (list of all completions with stats) isn't built yet.
+- Planning tolerates missing/partial data — if the user logs only `reps` (no weight, no RPE), the history summary just omits those bits. No fallback when the session has zero sets logged; the model sees `0/3 sets` for each exercise and should treat it as a skipped-session pattern. Worth watching.
+
+**Verification:**
+- `npm run typecheck` across 3 workspaces: passes.
+- `wrangler dev` boots on :8787.
+- `GET /sessions/recent` authed + empty → `{sessions: []}` ✓
+- Seeded a user + plan + one completed session_log (via `.smoke-seed.sql` file — needed to bypass FK constraint on `workout_plans`). `GET /sessions/recent?limit=5` → returned the session with full exercises including RPE ✓
+- FK constraint on `session_logs.plan_id` is doing its job — my first seed attempt without inserting a plan failed with `FOREIGN KEY constraint failed: SQLITE_CONSTRAINT`. Good — the schema enforces that no orphan session log can exist.
+- Cleaned up test rows.
+- **Not verified:** real AI regen-with-history (needs `ANTHROPIC_API_KEY`), end-to-end from user completing a session on device to seeing a progressed plan on next generate. Mobile tile display on device.
+
+---
+
 ## 2026-04-22 — pass-5-session-runner-polish-rest-timer-summary-haptics
 
 **What:**

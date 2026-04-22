@@ -1,11 +1,30 @@
+import type { Profile, SessionLog } from "@mai/shared";
 import type { ToolDefinition } from "../lib/ai/index.js";
-import type { Profile } from "@mai/shared";
 
-export function buildPlanningSystemPrompt(profile: Profile): string {
+export function buildPlanningSystemPrompt(
+  profile: Profile,
+  recentSessions: SessionLog[] = [],
+): string {
+  const historyBlock = recentSessions.length > 0
+    ? `
+
+Last week's actual performance — treat this as ground truth, not the plan on paper:
+${formatHistory(recentSessions)}
+
+Use this history to make a specific progression decision:
+- If the athlete consistently hit or exceeded the prescribed sets/reps/weight, progress: bump load ~5-10% OR add a set where time allows. Name the progression in \`summary\`.
+- If they consistently missed prescribed sets/reps, hold or reduce — back off one load-step. Do not keep stacking volume on a missed baseline.
+- If they swapped specific exercises, consider whether the substitute is a better fit going forward (use the substitute in the new plan) or whether to re-try the original.
+- If they skipped exercises, assume the issue is valid (time, energy, dislike). Either drop the movement, cut sets, or replace with something they'll actually do.
+- If they showed high RPE (8+) on most sets at the prescribed load, don't progress yet — lock in the weight and tighten form.
+
+Acknowledge the progression logic concisely in \`summary\` (one phrase, e.g. "week 2 — load bumped on squats, volume held elsewhere"). Don't lecture the athlete about why.`
+    : "";
+
   return `You are the mAI.fitness head coach. You write training plans that actually get followed: honest about time, realistic about recovery, specific enough to execute without asking back.
 
 This is the athlete's profile — treat every field as a hard constraint, not a suggestion:
-${formatProfile(profile)}
+${formatProfile(profile)}${historyBlock}
 
 Your job: generate ONE week's worth of sessions that can be repeated for the horizon of the plan, with the expectation that future weeks get regenerated based on performance.
 
@@ -44,6 +63,48 @@ function formatProfile(p: Profile): string {
   return lines.length > 0 ? lines.join("\n") : "(profile missing)";
 }
 
+function formatHistory(sessions: SessionLog[]): string {
+  const now = Date.now();
+  return sessions
+    .map((s) => {
+      const completedAt = s.completedAt ?? s.startedAt;
+      const daysAgo = Math.max(0, Math.round((now - completedAt) / 86_400_000));
+      const header = `Session "${s.sessionTitle}" — ${daysAgo === 0 ? "today" : `${daysAgo}d ago`}`;
+      const body = s.exercises
+        .map((e) => {
+          if (e.skipped) return `  - ${e.name}: SKIPPED`;
+          const achieved = e.sets.length;
+          const planned = e.plannedSets;
+          const reps = e.sets.map((set) => set.reps);
+          const weights = e.sets
+            .map((set) => set.weightKg)
+            .filter((w): w is number => typeof w === "number" && w > 0);
+          const rpes = e.sets
+            .map((set) => set.rpe)
+            .filter((r): r is number => typeof r === "number");
+          const bits: string[] = [`${achieved}/${planned} sets`];
+          if (reps.length > 0) {
+            const minR = Math.min(...reps);
+            const maxR = Math.max(...reps);
+            bits.push(minR === maxR ? `${minR} reps` : `${minR}-${maxR} reps`);
+          }
+          if (weights.length > 0) {
+            const avg = Math.round(weights.reduce((a, b) => a + b, 0) / weights.length);
+            bits.push(`avg ${avg} kg`);
+          }
+          if (rpes.length > 0) {
+            const avgRpe = Math.round(rpes.reduce((a, b) => a + b, 0) / rpes.length);
+            bits.push(`RPE ${avgRpe}`);
+          }
+          const swapped = e.substitutedFor ? ` (swapped from "${e.substitutedFor}")` : "";
+          return `  - ${e.name}${swapped}: ${bits.join(", ")}`;
+        })
+        .join("\n");
+      return `${header}\n${body}`;
+    })
+    .join("\n\n");
+}
+
 export const SAVE_PLAN_TOOL: ToolDefinition = {
   name: "save_plan",
   description:
@@ -57,7 +118,8 @@ export const SAVE_PLAN_TOOL: ToolDefinition = {
       },
       summary: {
         type: "string",
-        description: "1-2 sentences describing what this week's training does and why.",
+        description:
+          "1-2 sentences describing what this week's training does and why. If prior performance exists, name the progression decision (e.g. 'load bumped on squats, volume held').",
       },
       sessions_per_week: {
         type: "integer",

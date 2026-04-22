@@ -10,7 +10,7 @@ import {
   View,
 } from "react-native";
 import type { Profile, SessionLog, StoredWorkoutPlan } from "@mai/shared";
-import { getActiveSession } from "../../src/lib/sessions";
+import { getActiveSession, getRecentSessions } from "../../src/lib/sessions";
 import { generatePlan, getCurrentPlan } from "../../src/lib/workouts";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { colors } from "../../src/theme/colors";
@@ -20,20 +20,24 @@ export default function HomeScreen() {
   const router = useRouter();
   const [plan, setPlan] = useState<StoredWorkoutPlan | null>(null);
   const [activeSession, setActiveSession] = useState<SessionLog | null>(null);
+  const [lastSession, setLastSession] = useState<SessionLog | null>(null);
   const [planLoading, setPlanLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
 
   const loadPlan = useCallback(async () => {
     try {
-      const [planRes, activeRes] = await Promise.all([
+      const [planRes, activeRes, recentRes] = await Promise.all([
         getCurrentPlan(),
         getActiveSession(),
+        getRecentSessions(1),
       ]);
       setPlan(planRes.plan);
       setActiveSession("session" in activeRes && activeRes.session ? activeRes.session : null);
+      setLastSession(recentRes.sessions[0] ?? null);
     } catch {
       setPlan(null);
       setActiveSession(null);
+      setLastSession(null);
     } finally {
       setPlanLoading(false);
     }
@@ -99,6 +103,18 @@ export default function HomeScreen() {
         <PlanPreview plan={plan} onPress={() => router.push("/(app)/plan")} />
       )}
 
+      {!activeSession && lastSession ? (
+        <LastSessionTile
+          session={lastSession}
+          onPress={() =>
+            router.push({
+              pathname: "/(app)/session",
+              params: { sessionId: lastSession.id },
+            })
+          }
+        />
+      ) : null}
+
       {profile && <ProfileSummary profile={profile} />}
 
       <Pressable
@@ -108,6 +124,37 @@ export default function HomeScreen() {
         <Text style={styles.signOutText}>Sign out</Text>
       </Pressable>
     </ScrollView>
+  );
+}
+
+function LastSessionTile({
+  session,
+  onPress,
+}: {
+  session: SessionLog;
+  onPress: () => void;
+}) {
+  const totalSets = session.exercises.reduce((acc, e) => acc + e.sets.length, 0);
+  const volume = session.exercises.reduce(
+    (acc, e) => acc + e.sets.reduce((a, s) => a + (s.weightKg ?? 0) * s.reps, 0),
+    0,
+  );
+  const completedAt = session.completedAt ?? session.startedAt;
+  const daysAgo = Math.max(0, Math.round((Date.now() - completedAt) / 86_400_000));
+  const ago = daysAgo === 0 ? "today" : daysAgo === 1 ? "yesterday" : `${daysAgo}d ago`;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.lastCard, pressed && styles.lastCardPressed]}
+    >
+      <Text style={styles.lastEyebrow}>Last session · {ago}</Text>
+      <Text style={styles.lastTitle}>{session.sessionTitle}</Text>
+      <Text style={styles.lastMeta}>
+        {totalSets} sets
+        {volume > 0 ? ` · ${volume >= 1000 ? `${Math.round(volume / 100) / 10}k` : Math.round(volume)} kg×reps` : ""}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -465,5 +512,35 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginTop: 10,
     opacity: 0.85,
+  },
+  lastCard: {
+    backgroundColor: colors.surface,
+    padding: 18,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  lastCardPressed: {
+    borderColor: colors.accent,
+  },
+  lastEyebrow: {
+    color: colors.textMuted,
+    fontSize: 11,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    fontWeight: "800",
+  },
+  lastTitle: {
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: "800",
+    marginTop: 4,
+    letterSpacing: -0.2,
+  },
+  lastMeta: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: "700",
+    marginTop: 4,
   },
 });

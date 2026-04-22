@@ -23,6 +23,7 @@ import {
   createSessionLog,
   getActiveSessionLog,
   getPlanById,
+  getRecentCompletedSessions,
   getSessionLog,
   updateSessionLogExercises,
 } from "../lib/db.js";
@@ -78,6 +79,15 @@ sessionsRoutes.post("/start", async (c) => {
   });
 
   return c.json<StartSessionResponse>({ session, plannedSession });
+});
+
+sessionsRoutes.get("/recent", async (c) => {
+  const user = c.get("user");
+  const raw = c.req.query("limit");
+  const limit = raw ? Number(raw) : 10;
+  const safe = Number.isFinite(limit) && limit > 0 ? limit : 10;
+  const sessions = await getRecentCompletedSessions(c.env.DB, user.id, safe);
+  return c.json({ sessions });
 });
 
 sessionsRoutes.get("/active", async (c) => {
