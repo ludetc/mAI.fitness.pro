@@ -62,15 +62,25 @@ mAI.fitness.pro/
 │   └── api/          # Cloudflare Worker — Hono, D1, TypeScript
 ├── packages/
 │   └── shared/       # Cross-workspace TypeScript types & API contracts
+├── .github/          # PR + issue templates
+├── README.md         # GitHub landing page
 ├── CLAUDE.md         # ← you are here
+├── AGENTS.md         # AI-feature design patterns (provider, tool-use, prompts)
+├── CONTRIBUTING.md   # contributor workflow
 ├── ARCHITECTURE.md   # living architecture doc (keep current)
+├── ROADMAP.md        # prioritised weaknesses + REQs gaps + scale-out plan
 ├── DEV_NOTES.md      # reverse-chronological dev log (append before every commit)
 ├── REQs.md           # product requirements (read-only, authoritative spec)
 ├── TECH.md           # tech stack decisions (read-only, authoritative)
-└── SETUP.md          # local setup instructions
+├── SETUP.md          # local setup + deploy instructions
+└── LICENSE           # MIT
 ```
 
 Workspace names are npm-scoped: `@mai/mobile`, `@mai/api`, `@mai/shared`.
+
+**When touching AI features** — read `AGENTS.md` first. It documents the provider abstraction, the tool-forcing pattern, and the "prompts live in files" convention that every AI route follows.
+
+**When making product trade-offs** — check `ROADMAP.md` before inventing a new one. Most common requests are already triaged there with severity + effort.
 
 ---
 

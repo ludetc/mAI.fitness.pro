@@ -15,6 +15,32 @@ Template:
 
 ---
 
+## 2026-04-22 — github-friendly-repo-layout-plus-roadmap
+
+**What:**
+- New top-level docs: `README.md` (GitHub landing page), `CONTRIBUTING.md` (contributor workflow), `LICENSE` (MIT), `AGENTS.md` (AI-feature design patterns), `ROADMAP.md` (weakness triage + REQs gaps + scale-out plan).
+- `.github/` scaffolding: `pull_request_template.md`, `ISSUE_TEMPLATE/bug_report.md`, `ISSUE_TEMPLATE/feature_request.md`, `ISSUE_TEMPLATE/config.yml` (disables blank issues, links to Discussions).
+- Updated `CLAUDE.md` workspace map to include all new docs and added pointers to `AGENTS.md` (for AI-feature work) and `ROADMAP.md` (for product trade-offs).
+- Code review performed from working knowledge across Worker + mobile + shared; results organised into `ROADMAP.md` §1 with severity tags (🔴/🟡/🟢) and effort tags (S/M/L).
+
+**Why:**
+User asked for a "1% Claude user" repo — polished, self-documenting, obvious to contribute to. `README.md` is the front door, `AGENTS.md` is the thing most projects don't have that makes it clear how to extend AI features without breaking conventions, `ROADMAP.md` replaces the informal "future-phase" table in `ARCHITECTURE.md` with a triaged, actionable list. The code review surfaced 17 concrete weaknesses across security (rate-limiting, JWT invalidation, prompt-injection), reliability (last-write-wins PUT, silent parser data loss), testing (zero tests), and polish (rest-timer persistence, accessibility) — each now has an entry with severity and rough effort.
+
+**Follow-ups:**
+- No tests yet. `ROADMAP.md` §1.5 captures this as the most-important medium-severity item and suggests a stack (Vitest + Miniflare for Worker, Detox/Maestro for mobile).
+- No CI workflow file yet. §1.6 covers it — one `.github/workflows/ci.yml` would catch typecheck regressions automatically.
+- No CODEOWNERS, no CODE_OF_CONDUCT.md. Kept things lean; add if/when we grow contributors.
+- README has static shield badges pointing at the current stack — not wired to real version detection.
+- MIT chosen for permissiveness. Not consulted with user; they can swap if they want Apache 2.0 (patent clause) or a dual license.
+
+**Verification:**
+- `npm run typecheck` still passes (docs-only changes don't touch source).
+- Every new markdown file spot-checked for: (a) renders in GitHub flavored markdown, (b) internal links resolve to files that exist, (c) no references to features that don't exist.
+- Cross-references audited: `README` ↔ `SETUP` ↔ `ARCHITECTURE` ↔ `ROADMAP` ↔ `AGENTS` ↔ `CLAUDE` ↔ `CONTRIBUTING` ↔ `DEV_NOTES` all link where they should and don't link to anything fictional.
+- No secrets, no committed `.env`, no `.dev.vars`.
+
+---
+
 ## 2026-04-22 — deploy-to-cloudflare-prod
 
 **What:**
