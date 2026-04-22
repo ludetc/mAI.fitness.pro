@@ -194,32 +194,44 @@ npx wrangler d1 migrations apply mai-db --remote
 
 ## 10. Personal / Collaborative Deployments
 
-If you want to deploy your own instance of mAI.fitness.pro with your own DB and AI model preferences:
+To deploy your own instance without modifying the tracked `wrangler.toml`:
 
 1. **Create your own D1 Database:**
    ```bash
    npx wrangler d1 create mai-db-personal
    ```
-   Copy the `database_id` from the output.
 
-2. **Configure your Environment:**
-   Uncomment and edit the `[env.personal]` block in `apps/api/wrangler.toml`. Use your new `database_id` and preferred `AI_MODEL_*` IDs.
+2. **Create a private config file:**
+   Create `apps/api/wrangler.personal.toml` (this is now gitignored). You only need to define the overrides:
 
-3. **Deploy to your environment:**
-   ```bash
-   cd apps/api
-   npx wrangler deploy --env personal
+   ```toml
+   name = "mai-fitness-api-yourname"
+
+   [[d1_databases]]
+   binding = "DB"
+   database_name = "mai-db-personal"
+   database_id = "YOUR_NEW_DATABASE_ID"
+
+   [vars]
+   GOOGLE_CLIENT_ID = "YOUR_OWN_WEB_CLIENT_ID"
+   AI_MODEL_CHAT = "openai/gpt-4o-mini"
+   AI_MODEL_PLANNING = "openai/gpt-4o"
    ```
 
-4. **Set your own secrets:**
-   Secrets are environment-specific. You must set them for `personal`:
+3. **Deploy using your private config:**
    ```bash
-   npx wrangler secret put ANTHROPIC_API_KEY --env personal
-   npx wrangler secret put JWT_SECRET --env personal
+   cd apps/api
+   npx wrangler deploy --config wrangler.personal.toml
+   ```
+
+4. **Set secrets for your instance:**
+   ```bash
+   npx wrangler secret put ANTHROPIC_API_KEY --config wrangler.personal.toml
+   npx wrangler secret put JWT_SECRET --config wrangler.personal.toml
    ```
 
 5. **Update Mobile App:**
-   In `apps/mobile/.env`, update `EXPO_PUBLIC_API_URL` to point to your new worker URL (usually `https://mai-fitness-api-custom.<your-subdomain>.workers.dev`).
+   Point `EXPO_PUBLIC_API_URL` in `apps/mobile/.env` to your new deployment URL.
 
 ---
 

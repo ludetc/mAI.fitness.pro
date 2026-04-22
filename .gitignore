@@ -12,6 +12,8 @@ build/
 **/.wrangler/
 .dev.vars
 **/.dev.vars
+wrangler.*.toml
+**/wrangler.*.toml
 
 # Expo
 .expo/
