@@ -2,7 +2,7 @@
 
 Living description of the mAI.fitness.pro system. **Keep this current** — update it in the same commit as any change that alters structure, routes, schema, auth, or external integrations. See `CLAUDE.md` for the rules.
 
-Last structural update: `2026-04-22` (Pass 6: dynamic tailoring — planning reads session history).
+Last structural update: `2026-04-22` (deploy to Cloudflare prod + model-version overrides).
 
 ---
 
@@ -33,6 +33,15 @@ Two runtime targets connected by a typed HTTP contract:
 Both sides share types via `packages/shared` (consumed as source `.ts` — no build step).
 
 ---
+
+## Deployed environments
+
+| Env | URL | D1 | Notes |
+|---|---|---|---|
+| Prod | `https://mai-fitness-api.apexdiligence.workers.dev` | `mai-db` (`7ff735b0-89fc-4534-91aa-e5851f6de505`) | Secrets `ANTHROPIC_API_KEY` + `JWT_SECRET` set. `GOOGLE_CLIENT_ID` still placeholder — real Google OAuth not yet wired. |
+| Local | `http://localhost:8787` | local SQLite at `.wrangler/state/v3/d1/` | Uses `.dev.vars` (gitignored). |
+
+Deployment commands live in `SETUP.md`. Redeploy: `npm run deploy -w @mai/api` (i.e. `wrangler deploy` from `apps/api`).
 
 ## Workspaces
 

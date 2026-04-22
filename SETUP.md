@@ -77,7 +77,7 @@ npm run migrate:local -w @mai/api
 
 This creates a local SQLite database at `apps/api/.wrangler/state/v3/d1/` with the `users` table.
 
-> **Note on `database_id`:** `wrangler.toml` ships with a placeholder UUID. For local dev this is fine — wrangler just needs the field to exist. When you're ready to deploy, run `wrangler d1 create mai-db` and paste the real ID in.
+> **Note on `database_id`:** `wrangler.toml` contains the deployed prod D1 id (`7ff735b0-89fc-4534-91aa-e5851f6de505`). Local wrangler dev uses the same `database_name` → its own local SQLite, so the remote id being set doesn't affect you locally.
 
 ---
 
@@ -153,8 +153,52 @@ If the OAuth redirect loops or you get a `redirect_uri_mismatch`, double-check t
 
 ---
 
-## 8. What's next
+## 8. Deploying to production
 
-Pass 1 ends here. The remaining roadmap phases (AI provider abstraction, onboarding, equipment audit, workout planning, real-time sessions, notifications, design polish) are documented in `ARCHITECTURE.md` under "Future-phase integration points".
+The Worker is already deployed at `https://mai-fitness-api.apexdiligence.workers.dev`. To push a new version:
 
-Before extending the app, read `CLAUDE.md` — there are standing obligations around `DEV_NOTES.md` and `ARCHITECTURE.md` updates.
+```bash
+cd apps/api
+npm run deploy
+```
+
+This requires `wrangler login` once per machine (opens a browser for Cloudflare OAuth).
+
+### Setting or rotating secrets
+
+Never put secrets in `wrangler.toml` or commit them. Use `wrangler secret put`:
+
+```bash
+cd apps/api
+npx wrangler secret put ANTHROPIC_API_KEY   # paste value at the prompt, not echoed
+# for JWT_SECRET, pipe a generated value to keep it off your terminal history:
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))" | npx wrangler secret put JWT_SECRET
+```
+
+Rotating `JWT_SECRET` invalidates all existing session tokens (users will be kicked back to sign-in).
+
+### Setting model overrides in prod
+
+Non-secret vars live in `wrangler.toml [vars]`. The current prod overrides point `AI_MODEL_*` at the latest Anthropic IDs (Haiku 4.5 for chat, Sonnet 4.6 for planning) — the code-level defaults are TECH.md-era aliases that Anthropic retired in 2025.
+
+To change a model:
+1. Edit the value in `wrangler.toml [vars]`.
+2. `npm run deploy` — takes a few seconds to propagate globally.
+
+### Applying migrations to prod
+
+```bash
+cd apps/api
+npx wrangler d1 migrations apply mai-db --remote
+```
+
+---
+
+## 9. What's next
+
+Refer to `ROADMAP.md` for the prioritised next-work list, which rolls up:
+- Identified weaknesses from the latest code review
+- Gaps against REQs.md that aren't implemented yet
+- Scale-out concerns (testing, observability, rate-limiting)
+
+Before extending the app, read `CLAUDE.md` — there are standing obligations around `DEV_NOTES.md` and `ARCHITECTURE.md` updates, and `AGENTS.md` describes the AI-feature design patterns used throughout the codebase.

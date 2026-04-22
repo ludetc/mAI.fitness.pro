@@ -7,7 +7,7 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "mai-db"
-database_id = "00000000-0000-0000-0000-000000000000" # placeholder; set real id after `wrangler d1 create mai-db`
+database_id = "7ff735b0-89fc-4534-91aa-e5851f6de505"
 migrations_dir = "migrations"
 
 # Non-secret vars. Secrets (JWT_SECRET, API keys) are set via `wrangler secret put`
@@ -15,6 +15,10 @@ migrations_dir = "migrations"
 [vars]
 GOOGLE_CLIENT_ID = "REPLACE_WITH_GOOGLE_OAUTH_WEB_CLIENT_ID"
 ALLOWED_ORIGINS = "http://localhost:8081,http://localhost:19006,https://auth.expo.io"
+# Current Anthropic model IDs as of 2026-Q1. Code-level defaults are the TECH.md-era
+# aliases which Anthropic retired in 2025; env vars here override for prod.
+AI_MODEL_CHAT = "anthropic/claude-haiku-4-5-20251001"
+AI_MODEL_PLANNING = "anthropic/claude-sonnet-4-6"
 
 # Observability
 [observability]

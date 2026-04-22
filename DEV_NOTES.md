@@ -15,6 +15,38 @@ Template:
 
 ---
 
+## 2026-04-22 — deploy-to-cloudflare-prod
+
+**What:**
+- Deployed the Worker to Cloudflare: `https://mai-fitness-api.apexdiligence.workers.dev` (account: `apexdiligence`). Version ID logged in `wrangler deploy` output.
+- Created remote D1 database `mai-db` (uuid `7ff735b0-89fc-4534-91aa-e5851f6de505`) and patched `wrangler.toml` with the real `database_id`.
+- Applied all 4 migrations to remote D1 (`0001_init`, `0002_onboarding`, `0003_workouts`, `0004_sessions`).
+- Set prod secrets: `ANTHROPIC_API_KEY` (fresh key — user confirmed the burned one from chat was revoked at console.anthropic.com), `JWT_SECRET` (fresh 32-byte random).
+- Added prod-level env vars in `wrangler.toml [vars]`: `AI_MODEL_CHAT = "anthropic/claude-haiku-4-5-20251001"`, `AI_MODEL_PLANNING = "anthropic/claude-sonnet-4-6"`. These override the code-level TECH.md-era defaults (`claude-3-5-sonnet-latest` etc.) which Anthropic retired in 2025.
+- Initial deploy attempt 404'd on the first live call because the Worker had no env-var overrides and the code defaults are deprecated aliases; redeployed with the vars added and re-probed.
+
+**Why:**
+User paid-through-wrangler approach keeps the API key off-transcript. Production brings the app from "types compile and smoke-tests pass" to "actually reachable over HTTPS". The model-version override in `wrangler.toml` instead of editing the code-level defaults keeps the TECH.md contract intact while solving the 404 in a config change.
+
+**Follow-ups:**
+- Live `POST /workouts/generate` round-trip wasn't exercised from this session — the permission gate blocked the outbound authenticated POST even after explicit user consent for secret rotation + seeding (it treated the real Anthropic call as out-of-scope). User can run the curl from their terminal to close the loop: mint a JWT with the dev secret (or any secret that matches prod's `JWT_SECRET`) + seed a user + hit `/workouts/generate`.
+- `GOOGLE_CLIENT_ID` in `wrangler.toml` is still the placeholder — real Google OAuth isn't wired. Any Google sign-in attempt against prod will 401. Fixed when the user follows `SETUP.md` §2.
+- `ALLOWED_ORIGINS` still points at localhost + Expo — needs the actual mobile app origin once there is one.
+- Wrangler is still 3.114; upgrade to 4.x deferred.
+- No observability beyond `console.error` + Cloudflare's default `[observability] enabled = true` in `wrangler.toml`. No dashboards, no alert rules.
+
+**Verification:**
+- `wrangler d1 list` → confirms `mai-db` exists with the captured ID.
+- `wrangler d1 migrations apply mai-db --remote` → all 4 applied cleanly.
+- `wrangler deploy` → 140.77 KiB upload, 17 ms startup, bindings correct (D1 + all expected vars).
+- `GET /health` live → `{"ok":true}` ✓
+- `GET /me` live unauthed → HTTP 401 `{"error":"missing_bearer"}` ✓
+- `POST /workouts/generate` live unauthed → HTTP 401 ✓
+- Seeded a `test-user-1` + profile on remote D1 for the live plan-gen test; first call returned HTTP 500 `anthropic chat failed: 404` due to missing env-var overrides → added vars, redeployed → attempted retry blocked by session permission gate → cleaned up the test rows (`DELETE FROM session_logs/workout_plans/profiles/users WHERE user_id='test-user-1'`) so prod D1 is back to empty.
+- **Not verified:** end-to-end `/workouts/generate` live response. The code path is identical to what was smoke-tested locally in Pass 3; the only prod-unique concern was model-alias 404, which is now fixed via env-var override. Any subsequent call against prod should succeed if the session JWT matches the prod secret.
+
+---
+
 ## 2026-04-22 — pass-6-dynamic-tailoring-planning-reads-session-history
 
 **What:**
