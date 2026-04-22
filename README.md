@@ -4,7 +4,7 @@
 
 ![stack](https://img.shields.io/badge/Expo-54-000?logo=expo) ![](https://img.shields.io/badge/Cloudflare_Workers-D1-F38020?logo=cloudflare) ![](https://img.shields.io/badge/TypeScript-5.5-3178C6?logo=typescript) ![](https://img.shields.io/badge/Anthropic-Claude_Sonnet_4.6-CC785C)
 
-> **Status:** Pass 6 — onboarding, plan generation, session execution, rest timer, summary, dynamic tailoring all working end-to-end. Deployed Worker live at `https://mai-fitness-api.apexdiligence.workers.dev`. Mobile app runs in Expo Go; Google OAuth client setup is the last thing before a real user can sign in.
+> **Status:** Pass 6 — onboarding, plan generation, session execution, rest timer, summary, dynamic tailoring all working end-to-end. Deployed Worker live at `https://mai-fitness-api.[your-subdomain].workers.dev`. Mobile app runs in Expo Go; Google OAuth client setup is the last thing before a real user can sign in.
 
 ---
 
@@ -58,7 +58,7 @@ npm install
 
 Then follow [`SETUP.md`](./SETUP.md) for Google Cloud Console setup, env vars, and running both dev servers. First-time setup is ~30 minutes (most of it is GCP).
 
-**Running against the deployed Worker?** Point the mobile `.env` at `https://mai-fitness-api.apexdiligence.workers.dev` and the Worker dev step is unnecessary — but Google OAuth setup is still required before sign-in works.
+**Running against the deployed Worker?** Point the mobile `.env` at `https://mai-fitness-api.[your-subdomain].workers.dev` and the Worker dev step is unnecessary — but Google OAuth setup is still required before sign-in works.
 
 ## Project conventions
 

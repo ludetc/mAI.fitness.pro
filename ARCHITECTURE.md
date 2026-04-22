@@ -38,7 +38,7 @@ Both sides share types via `packages/shared` (consumed as source `.ts` — no bu
 
 | Env | URL | D1 | Notes |
 |---|---|---|---|
-| Prod | `https://mai-fitness-api.apexdiligence.workers.dev` | `mai-db` (`7ff735b0-89fc-4534-91aa-e5851f6de505`) | Secrets `ANTHROPIC_API_KEY` + `JWT_SECRET` set. `GOOGLE_CLIENT_ID` still placeholder — real Google OAuth not yet wired. |
+| Prod | `https://mai-fitness-api.[your-subdomain].workers.dev` | `mai-db` (`7ff735b0-89fc-4534-91aa-e5851f6de505`) | Secrets `ANTHROPIC_API_KEY` + `JWT_SECRET` set. `GOOGLE_CLIENT_ID` still placeholder — real Google OAuth not yet wired. |
 | Local | `http://localhost:8787` | local SQLite at `.wrangler/state/v3/d1/` | Uses `.dev.vars` (gitignored). |
 
 Deployment commands live in `SETUP.md`. Redeploy: `npm run deploy -w @mai/api` (i.e. `wrangler deploy` from `apps/api`).

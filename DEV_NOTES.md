@@ -64,7 +64,7 @@ User asked for a "1% Claude user" repo — polished, self-documenting, obvious t
 ## 2026-04-22 — deploy-to-cloudflare-prod
 
 **What:**
-- Deployed the Worker to Cloudflare: `https://mai-fitness-api.apexdiligence.workers.dev` (account: `apexdiligence`). Version ID logged in `wrangler deploy` output.
+- Deployed the Worker to Cloudflare: `https://mai-fitness-api.[your-subdomain].workers.dev` (account: `[your-account]`). Version ID logged in `wrangler deploy` output.
 - Created remote D1 database `mai-db` (uuid `7ff735b0-89fc-4534-91aa-e5851f6de505`) and patched `wrangler.toml` with the real `database_id`.
 - Applied all 4 migrations to remote D1 (`0001_init`, `0002_onboarding`, `0003_workouts`, `0004_sessions`).
 - Set prod secrets: `ANTHROPIC_API_KEY` (fresh key — user confirmed the burned one from chat was revoked at console.anthropic.com), `JWT_SECRET` (fresh 32-byte random).

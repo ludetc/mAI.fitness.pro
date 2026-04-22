@@ -38,9 +38,9 @@ The app signs users in with Google. You need three OAuth 2.0 Client IDs in the *
    - Add your own Google account as a **test user** while the app is in testing mode.
 3. Navigate to **APIs & Services → Credentials → Create credentials → OAuth client ID**, and create **three** clients:
    - **iOS**
-     - Bundle ID: `fr.apexdiligence.maifitness` (match `apps/mobile/app.json` → `expo.ios.bundleIdentifier`).
+     - Bundle ID: `com.mai.fitness.pro` (match `apps/mobile/app.json` → `expo.ios.bundleIdentifier`).
    - **Android**
-     - Package name: `fr.apexdiligence.maifitness` (match `apps/mobile/app.json` → `expo.android.package`).
+     - Package name: `com.mai.fitness.pro` (match `apps/mobile/app.json` → `expo.android.package`).
      - SHA-1: for Expo Go use the generic Expo development fingerprint, or when using a dev build, run `eas credentials` and copy the SHA-1 from there.
    - **Web application**
      - Authorized redirect URIs (at least one of):
@@ -155,7 +155,7 @@ If the OAuth redirect loops or you get a `redirect_uri_mismatch`, double-check t
 
 ## 8. Deploying to production
 
-The Worker is already deployed at `https://mai-fitness-api.apexdiligence.workers.dev`. To push a new version:
+The Worker is already deployed at `https://mai-fitness-api.[your-subdomain].workers.dev`. To push a new version:
 
 ```bash
 cd apps/api

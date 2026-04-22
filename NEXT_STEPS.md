@@ -6,7 +6,7 @@ Your resume-from-here checklist. Written 2026-04-22. Once you've completed Step 
 
 ## Current state (where you left off)
 
-- ✅ Prod Worker deployed: `https://mai-fitness-api.apexdiligence.workers.dev`
+- ✅ Prod Worker deployed: `https://mai-fitness-api.[your-subdomain].workers.dev`
 - ✅ Remote D1 `mai-db` provisioned, all 4 migrations applied
 - ✅ Prod secrets set: `ANTHROPIC_API_KEY`, `JWT_SECRET`
 - ✅ Prod `AI_MODEL_*` vars set to current Anthropic IDs (Haiku 4.5, Sonnet 4.6)
@@ -38,13 +38,13 @@ Open https://console.cloud.google.com.
   **iOS client:**
   - Application type: iOS
   - Name: `mAI.fitness iOS`
-  - Bundle ID: `fr.apexdiligence.maifitness` (matches `apps/mobile/app.json` → `expo.ios.bundleIdentifier`)
+  - Bundle ID: `com.mai.fitness.pro` (matches `apps/mobile/app.json` → `expo.ios.bundleIdentifier`)
   - Create → copy the id.
 
   **Android client:**
   - Application type: Android
   - Name: `mAI.fitness Android`
-  - Package name: `fr.apexdiligence.maifitness`
+  - Package name: `com.mai.fitness.pro`
   - SHA-1 (generic Expo Go dev fingerprint):
     ```
     A5:88:41:A5:32:A1:B4:E5:AB:33:2F:5C:54:7F:99:DD:A1:F7:6A:72
@@ -85,7 +85,7 @@ cd C:\Users\BerfayHunalp\mAI.fitness.pro\apps\api
   ```cmd
   npx wrangler deploy
   ```
-  Should take ~10 seconds. Output ends with `https://mai-fitness-api.apexdiligence.workers.dev`.
+  Should take ~10 seconds. Output ends with `https://mai-fitness-api.[your-subdomain].workers.dev`.
 
 ---
 
@@ -99,7 +99,7 @@ copy .env.example .env
 - [ ] Open `apps\mobile\.env` in a text editor.
 - [ ] Fill the four vars:
   ```
-  EXPO_PUBLIC_API_URL=https://mai-fitness-api.apexdiligence.workers.dev
+  EXPO_PUBLIC_API_URL=https://mai-fitness-api.[your-subdomain].workers.dev
   EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS=<iOS id>.apps.googleusercontent.com
   EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID=<Android id>.apps.googleusercontent.com
   EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB=<Web id>.apps.googleusercontent.com
