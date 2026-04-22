@@ -1,3 +1,4 @@
+import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -13,6 +14,7 @@ import { generatePlan, getCurrentPlan } from "../../src/lib/workouts";
 import { colors } from "../../src/theme/colors";
 
 export default function PlanScreen() {
+  const router = useRouter();
   const [plan, setPlan] = useState<StoredWorkoutPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [regenerating, setRegenerating] = useState(false);
@@ -82,7 +84,17 @@ export default function PlanScreen() {
       </View>
 
       {plan.plan.weeklyTemplate.map((session, i) => (
-        <SessionCard key={`${i}-${session.title}`} session={session} index={i} />
+        <SessionCard
+          key={`${i}-${session.title}`}
+          session={session}
+          index={i}
+          onStart={() =>
+            router.push({
+              pathname: "/(app)/session",
+              params: { planId: plan.id, index: String(i) },
+            })
+          }
+        />
       ))}
 
       <Pressable
@@ -104,7 +116,15 @@ export default function PlanScreen() {
   );
 }
 
-function SessionCard({ session, index }: { session: WorkoutSession; index: number }) {
+function SessionCard({
+  session,
+  index,
+  onStart,
+}: {
+  session: WorkoutSession;
+  index: number;
+  onStart: () => void;
+}) {
   return (
     <View style={styles.sessionCard}>
       <View style={styles.sessionHeader}>
@@ -118,6 +138,12 @@ function SessionCard({ session, index }: { session: WorkoutSession; index: numbe
           <ExerciseRow key={`${i}-${ex.name}`} exercise={ex} />
         ))}
       </View>
+      <Pressable
+        onPress={onStart}
+        style={({ pressed }) => [styles.startButton, pressed && styles.startButtonPressed]}
+      >
+        <Text style={styles.startButtonText}>Start this session</Text>
+      </Pressable>
     </View>
   );
 }
@@ -277,6 +303,21 @@ const styles = StyleSheet.create({
   regenText: {
     color: colors.textMuted,
     fontWeight: "700",
+    letterSpacing: 0.3,
+  },
+  startButton: {
+    backgroundColor: colors.accent,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 12,
+  },
+  startButtonPressed: {
+    backgroundColor: colors.accentPressed,
+  },
+  startButtonText: {
+    color: colors.text,
+    fontWeight: "800",
     letterSpacing: 0.3,
   },
 });

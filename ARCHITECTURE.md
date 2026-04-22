@@ -2,7 +2,7 @@
 
 Living description of the mAI.fitness.pro system. **Keep this current** — update it in the same commit as any change that alters structure, routes, schema, auth, or external integrations. See `CLAUDE.md` for the rules.
 
-Last structural update: `2026-04-22` (Pass 3: workout plan generation + viewer).
+Last structural update: `2026-04-22` (Pass 4: real-time session execution + in-workout swaps).
 
 ---
 
@@ -82,6 +82,12 @@ Root `package.json` wires npm workspaces and top-level scripts (`dev:api`, `dev:
 | GET | `/chat/onboarding/:id` | Bearer | Full history + profile (profile null until completion). |
 | GET | `/workouts/current` | Bearer | Current active plan or `{plan: null}`. |
 | POST | `/workouts/generate` | Bearer | Generate a new plan from the user's profile. Archives any prior active plan. 409 if no profile; 503 if planning provider is unconfigured; 502 if the model failed to return a valid plan. |
+| POST | `/sessions/start` | Bearer | Start a session (or resume the active one — at most one in-progress per user). Body: `{planId, sessionIndex}`. Returns `{session, plannedSession}`. |
+| GET | `/sessions/active` | Bearer | Current in-progress session envelope or `{session: null}`. |
+| GET | `/sessions/:id` | Bearer | Full session envelope including the planned session data. |
+| PUT | `/sessions/:id` | Bearer | Replace the exercises array (log sets, skip, substitute). 409 if already completed. |
+| POST | `/sessions/:id/complete` | Bearer | Mark the session complete. 409 if already completed. |
+| POST | `/sessions/:id/adjust` | Bearer | Ask the chat provider for a single replacement exercise. Body: `{exerciseIndex, reason, details?}`. Returns `{suggestion, rationale}`. Client applies the swap client-side, then PUTs it back. |
 
 All responses are JSON. Errors use `{ error: <slug>, message?: <string> }` with appropriate HTTP status.
 
@@ -124,6 +130,13 @@ Indexes: `idx_users_email` on `users(email)`.
 - Flow: `POST /workouts/generate` archives existing active rows, then inserts the new row with `status='active'`. Old plans are kept (not deleted) for history and future personalisation signals.
 - `data` is a `WorkoutPlan` (see `packages/shared/src/workouts.ts`): `{name, summary, sessionsPerWeek, durationWeeks, weeklyTemplate: WorkoutSession[]}`. Each `WorkoutSession` has `title, focus, durationMinutes, exercises: Exercise[]`, and each `Exercise` has `name, sets, reps, restSeconds, notes?`.
 
+### `session_logs` (0004_sessions.sql)
+
+- Fields: `id`, `user_id` (FK), `plan_id` (FK), `session_index`, `session_title` (denormalised from the plan so logs survive a regen that removed the source session), `started_at`, `completed_at` (nullable), `exercises` (JSON of `ExerciseLog[]` with per-set `{reps, weightKg?, rpe?}` and optional `skipped` / `substitutedFor` / `notes` flags), `notes` (TEXT, nullable, whole-session notes).
+- Indexes: `(user_id, completed_at)` for active lookup; `(user_id, started_at DESC)` for history; and a **partial unique** `(user_id) WHERE completed_at IS NULL` — at-most-one in-progress session per user at the DB layer.
+- `/sessions/start` is idempotent: if an active session exists, it's returned as-is (regardless of the requested `planId`/`sessionIndex`). The user finishes or abandons the active one before starting another.
+- PUT/complete always check `completed_at IS NULL` before mutating, so a completed log is immutable.
+
 ---
 
 ## Environment variables & secrets
@@ -162,9 +175,10 @@ All `EXPO_PUBLIC_*` vars are baked into the bundle — do not put secrets here.
 - **`app/(app)/`** — authenticated routes group. All screens inside are gated on `status === 'signedIn'`.
   - **`index.tsx`** — home. Three-state gate: (a) no profile → onboarding CTA; (b) profile but no active plan → "Generate this week" CTA; (c) plan exists → plan preview card tapping into `/plan`. Always shows profile summary beneath (once profile exists). Plan is reloaded via `useFocusEffect` on every focus so regenerations elsewhere are reflected.
   - **`onboarding.tsx`** — chat UI. Calls `startOnboarding` on mount to resume or create; `sendOnboardingMessage` on each user turn. When the response has `completed: true`, refreshes the profile on the AuthProvider and redirects home.
-  - **`plan.tsx`** — plan viewer. Renders the active `WorkoutPlan` as a header card + one card per `WorkoutSession` (day number, title, focus, duration, exercise rows). "Regenerate plan" button calls `POST /workouts/generate` and swaps the plan in-place.
+  - **`plan.tsx`** — plan viewer. Renders the active `WorkoutPlan` as a header card + one card per `WorkoutSession` (day number, title, focus, duration, exercise rows). "Start this session" on each card navigates to `/session`. "Regenerate plan" button calls `POST /workouts/generate` and swaps the plan in-place.
+  - **`session.tsx`** — real-time session runner. Accepts either `?sessionId=X` (resume) or `?planId=X&index=Y` (start). Shows current exercise focus card, live set logger (reps/weight/RPE input), exercise list with progress, swap sheet (reason picker → AI suggestion → accept/reject), finish button. Writes through `PUT /sessions/:id` on every mutation (best-effort; UI stays playable if the PUT fails).
 - **`src/providers/AuthProvider.tsx`** — React context owning `{user, profile, onboardingConversationId, status, signInWithIdToken, signOut, refreshProfile}`. On hydrate, fetches both `/me` and `/me/profile` so the home screen can gate on profile status without an extra round-trip.
-- **`src/lib/`** — `session.ts` (token storage), `api.ts` (fetch wrapper), `auth.ts` (Google OAuth config), `onboarding.ts` (chat + profile API client), `workouts.ts` (plan API client).
+- **`src/lib/`** — `session.ts` (token storage), `api.ts` (fetch wrapper), `auth.ts` (Google OAuth config), `onboarding.ts` (chat + profile API client), `workouts.ts` (plan API client), `sessions.ts` (session runner API client — note the plural, distinct from token `session.ts`).
 
 ---
 
@@ -190,10 +204,9 @@ These are reserved — **not implemented yet**. Listed so future work slots in p
 |---|---|---|---|---|
 | 4. Equipment audit | `POST /equipment/scan` | `expo-camera`, `expo-image-picker` | `equipment`, `equipment_photos` | R2 bucket, GPT-4o Vision |
 | 5b. Scheduling | `scheduled_sessions` table, commit/complete endpoints | Calendar UI, "start today's session" card | `scheduled_sessions` | — |
-| 6. Real-time session | `POST /sessions/:id/adjust` | Active session screen | `session_logs`, `exercise_logs` | — |
 | 7. Engagement | `scheduled()` cron | Push token registration | `push_tokens`, `notifications` | Expo Push API |
 | 8. Design polish | — | Theme tokens, typography, haptics, micro-interactions | — | — |
-| Also deferred — streaming for `/chat/onboarding/:id/send`; `exercise_library` canonical table (Pass 3 trusts the model to produce canonical names). |
+| Also deferred — streaming for `/chat/onboarding/:id/send`; `exercise_library` canonical table (trusts the model to produce canonical names); session history/stats views; dynamic next-week generation that reads `session_logs` for progression. |
 
 When you implement any of these, **move the row from this table into the live sections above** and add to `DEV_NOTES.md`.
 

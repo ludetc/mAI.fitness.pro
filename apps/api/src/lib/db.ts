@@ -1,8 +1,10 @@
 import type {
   ChatMessage as PublicChatMessage,
   Conversation as PublicConversation,
+  ExerciseLog,
   GoogleIdentity,
   Profile,
+  SessionLog,
   StoredWorkoutPlan,
   User,
   WorkoutPlan,
@@ -360,4 +362,143 @@ export async function getActivePlan(
     .bind(userId)
     .first<WorkoutPlanRow>();
   return row ? rowToStoredPlan(row) : null;
+}
+
+export async function getPlanById(
+  db: D1Database,
+  userId: string,
+  planId: string,
+): Promise<StoredWorkoutPlan | null> {
+  const row = await db
+    .prepare("SELECT * FROM workout_plans WHERE id = ? AND user_id = ?")
+    .bind(planId, userId)
+    .first<WorkoutPlanRow>();
+  return row ? rowToStoredPlan(row) : null;
+}
+
+// ----------------------- SESSION LOGS -----------------------
+
+interface SessionLogRow {
+  id: string;
+  user_id: string;
+  plan_id: string;
+  session_index: number;
+  session_title: string;
+  started_at: number;
+  completed_at: number | null;
+  exercises: string;
+  notes: string | null;
+}
+
+function rowToSessionLog(row: SessionLogRow): SessionLog | null {
+  let exercises: ExerciseLog[];
+  try {
+    const parsed = JSON.parse(row.exercises);
+    if (!Array.isArray(parsed)) return null;
+    exercises = parsed as ExerciseLog[];
+  } catch {
+    return null;
+  }
+  return {
+    id: row.id,
+    planId: row.plan_id,
+    sessionIndex: row.session_index,
+    sessionTitle: row.session_title,
+    startedAt: row.started_at,
+    completedAt: row.completed_at,
+    exercises,
+    notes: row.notes,
+  };
+}
+
+export async function getActiveSessionLog(
+  db: D1Database,
+  userId: string,
+): Promise<SessionLog | null> {
+  const row = await db
+    .prepare(
+      "SELECT * FROM session_logs WHERE user_id = ? AND completed_at IS NULL ORDER BY started_at DESC LIMIT 1",
+    )
+    .bind(userId)
+    .first<SessionLogRow>();
+  return row ? rowToSessionLog(row) : null;
+}
+
+export async function getSessionLog(
+  db: D1Database,
+  userId: string,
+  id: string,
+): Promise<SessionLog | null> {
+  const row = await db
+    .prepare("SELECT * FROM session_logs WHERE id = ? AND user_id = ?")
+    .bind(id, userId)
+    .first<SessionLogRow>();
+  return row ? rowToSessionLog(row) : null;
+}
+
+export async function createSessionLog(
+  db: D1Database,
+  args: {
+    userId: string;
+    planId: string;
+    sessionIndex: number;
+    sessionTitle: string;
+    exercises: ExerciseLog[];
+  },
+): Promise<SessionLog> {
+  const id = newId();
+  const now = Date.now();
+  await db
+    .prepare(
+      "INSERT INTO session_logs (id, user_id, plan_id, session_index, session_title, started_at, completed_at, exercises, notes) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, NULL)",
+    )
+    .bind(
+      id,
+      args.userId,
+      args.planId,
+      args.sessionIndex,
+      args.sessionTitle,
+      now,
+      JSON.stringify(args.exercises),
+    )
+    .run();
+  return {
+    id,
+    planId: args.planId,
+    sessionIndex: args.sessionIndex,
+    sessionTitle: args.sessionTitle,
+    startedAt: now,
+    completedAt: null,
+    exercises: args.exercises,
+    notes: null,
+  };
+}
+
+export async function updateSessionLogExercises(
+  db: D1Database,
+  userId: string,
+  id: string,
+  exercises: ExerciseLog[],
+  notes: string | null,
+): Promise<void> {
+  await db
+    .prepare(
+      "UPDATE session_logs SET exercises = ?, notes = ? WHERE id = ? AND user_id = ? AND completed_at IS NULL",
+    )
+    .bind(JSON.stringify(exercises), notes, id, userId)
+    .run();
+}
+
+export async function completeSessionLog(
+  db: D1Database,
+  userId: string,
+  id: string,
+): Promise<boolean> {
+  const res = await db
+    .prepare(
+      "UPDATE session_logs SET completed_at = ? WHERE id = ? AND user_id = ? AND completed_at IS NULL",
+    )
+    .bind(Date.now(), id, userId)
+    .run();
+  return (res.meta?.changes ?? 0) > 0;
 }

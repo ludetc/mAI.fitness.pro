@@ -10,7 +10,8 @@
     "./types": "./src/types.ts",
     "./api": "./src/api.ts",
     "./onboarding": "./src/onboarding.ts",
-    "./workouts": "./src/workouts.ts"
+    "./workouts": "./src/workouts.ts",
+    "./sessions": "./src/sessions.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

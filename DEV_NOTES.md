@@ -15,6 +15,46 @@ Template:
 
 ---
 
+## 2026-04-22 — pass-4-real-time-session-execution
+
+**What:**
+- **Shared types** (`packages/shared/src/sessions.ts`): `SetLog {reps, weightKg?, rpe?}`, `ExerciseLog {name, plannedSets, plannedReps, plannedRestSeconds, sets, skipped?, substitutedFor?, notes?}`, `SessionLog`, `SessionEnvelope {session, plannedSession}`, plus request/response shapes for start/get/update/complete/adjust. Exported from shared index + package exports.
+- **D1 migration `0004_sessions.sql`**: `session_logs` with JSON `exercises` column, denormalised `session_title` (so logs survive a plan regen), three indexes including a partial unique `(user_id) WHERE completed_at IS NULL` enforcing at-most-one in-progress session per user at the DB layer.
+- **DB helpers** (`apps/api/src/lib/db.ts`): `getActiveSessionLog`, `getSessionLog`, `createSessionLog`, `updateSessionLogExercises`, `completeSessionLog`, plus `getPlanById` (added for session hydration).
+- **Adjust prompt & tool** (`apps/api/src/prompts/adjust.ts`): `buildAdjustSystemPrompt(original, sessionTitle, sessionFocus, reason, details?)` — real-time coach prompt with explicit rules around equipment/intensity/intent preservation. `suggest_alternative` tool schema returning an Exercise + rationale.
+- **Worker routes** (`apps/api/src/routes/sessions.ts`): `POST /sessions/start` (idempotent — returns existing active if one exists), `GET /sessions/active`, `GET /sessions/:id`, `PUT /sessions/:id` (409 if completed), `POST /sessions/:id/complete` (409 if already), `POST /sessions/:id/adjust` (uses chat provider with forced `suggest_alternative` tool). All responses wrap `{session, plannedSession}` so the client can always render spec + log side-by-side.
+- **Mobile** (`apps/mobile/`): new `src/lib/sessions.ts` API client. New `app/(app)/session.tsx` — real-time session runner with current-exercise focus card, live set logger (reps/weight/RPE fields, log/undo), tappable exercise list with progress badges, finish button, swap sheet (Modal with reason picker → calls `/adjust` → shows suggestion card → accept writes into local state and PUTs back). Plan screen session cards now have a "Start this session" button routing to `/session?planId=X&index=Y`. Home screen adds a "Resume session" hero card (red accent) shown above everything when an active session exists, tapping it navigates to `/session?sessionId=X`. Home now fetches plan + active session in parallel via `Promise.all` on every focus.
+- **Docs**: `ARCHITECTURE.md` updated — routes table expanded with six session endpoints, `session_logs` schema including the partial unique index explained, mobile section describes session.tsx behavior, Phase 6 removed from future table with explicit deferrals for session history, equipment audit, etc.
+
+**Why:**
+User said "keep going" after Pass 3. The clearest next step: the user can now SEE a plan but not DO one. Execution closes the loop — generate → perform → log. Pulled in the REQs §4 "alternative suggestions" feature with the swap sheet because it's the real-time differentiator; deferring it would make execution feel skeletal. Idempotent-on-start behavior keeps the "resume vs start new" question boring — there's only ever one in-progress session; if you tap "Start" on a different day, you get the existing one back. Users can explicitly complete before starting another.
+
+**Follow-ups:**
+- "Resume vs restart different session" isn't distinguishable in-API right now — if you have an active session on plan A and switch plans, clicking Start on the new plan returns the old session. Acceptable for Pass 4 (the UX can surface "You have an in-progress Lower session — finish or abandon it first?") but worth building explicitly.
+- No "abandon session" route yet (only complete). Add in a later pass.
+- `PUT /sessions/:id` is whole-exercises replacement, not patch. Last-write-wins between two concurrent devices. No collaborative editing plans, so acceptable.
+- Session history endpoint (`GET /sessions?limit=10`) not wired — plan generation can't read prior performance yet. Required for REQs §4 "dynamic tailoring" — future pass.
+- AI call for adjust is unverified end-to-end (needs `OPENAI_API_KEY`). 503 path confirmed clean. Tool-choice forcing is used so a chatty text response is guaranteed impossible.
+- No rest timer visualisation yet — app relies on the user to wait their rest. Low-stakes polish for Phase 8.
+- Mobile still device-untested; only typechecked.
+
+**Verification:**
+- `npm run typecheck` across 3 workspaces: passes.
+- `wrangler d1 migrations apply mai-db --local`: `0004_sessions.sql` applied (5 commands including the partial unique index).
+- `wrangler dev` boots on :8787.
+- Inserted a two-session plan (`p1`) for `test-user-1`, minted dev JWT.
+- `GET /sessions/active` → `{session: null}` ✓
+- `POST /sessions/start {planId: p1, sessionIndex: 0}` → returns full envelope with `exercises[].sets: []` ready for logging ✓
+- `POST /sessions/start {planId: p1, sessionIndex: 1}` (second call) → returns the SAME active session for index 0 (idempotent) ✓
+- `PUT /sessions/:id` with one logged set → session reflects the logged set ✓
+- `POST /sessions/:id/adjust` without OPENAI key → 503 `ai_not_configured` ✓
+- `POST /sessions/:id/complete` → `completedAt` set ✓
+- `GET /sessions/active` after complete → `{session: null}` ✓
+- Cleaned up test rows in D1.
+- **Not verified:** real AI adjust round-trip (needs keys), multi-device concurrency, abandon-active flow, regen-while-active-session scenario.
+
+---
+
 ## 2026-04-22 — pass-3-workout-plan-generation
 
 **What:**

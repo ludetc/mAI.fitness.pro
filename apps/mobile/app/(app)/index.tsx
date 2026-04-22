@@ -9,7 +9,8 @@ import {
   Text,
   View,
 } from "react-native";
-import type { Profile, StoredWorkoutPlan } from "@mai/shared";
+import type { Profile, SessionLog, StoredWorkoutPlan } from "@mai/shared";
+import { getActiveSession } from "../../src/lib/sessions";
 import { generatePlan, getCurrentPlan } from "../../src/lib/workouts";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { colors } from "../../src/theme/colors";
@@ -18,15 +19,21 @@ export default function HomeScreen() {
   const { user, profile, signOut } = useAuth();
   const router = useRouter();
   const [plan, setPlan] = useState<StoredWorkoutPlan | null>(null);
+  const [activeSession, setActiveSession] = useState<SessionLog | null>(null);
   const [planLoading, setPlanLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
 
   const loadPlan = useCallback(async () => {
     try {
-      const res = await getCurrentPlan();
-      setPlan(res.plan);
+      const [planRes, activeRes] = await Promise.all([
+        getCurrentPlan(),
+        getActiveSession(),
+      ]);
+      setPlan(planRes.plan);
+      setActiveSession("session" in activeRes && activeRes.session ? activeRes.session : null);
     } catch {
       setPlan(null);
+      setActiveSession(null);
     } finally {
       setPlanLoading(false);
     }
@@ -68,6 +75,18 @@ export default function HomeScreen() {
         {user.name && <Text style={styles.name}>{user.name}</Text>}
       </View>
 
+      {activeSession ? (
+        <ResumeSessionCta
+          session={activeSession}
+          onPress={() =>
+            router.push({
+              pathname: "/(app)/session",
+              params: { sessionId: activeSession.id },
+            })
+          }
+        />
+      ) : null}
+
       {!profile ? (
         <OnboardingCta onPress={() => router.push("/(app)/onboarding")} />
       ) : planLoading ? (
@@ -89,6 +108,29 @@ export default function HomeScreen() {
         <Text style={styles.signOutText}>Sign out</Text>
       </Pressable>
     </ScrollView>
+  );
+}
+
+function ResumeSessionCta({
+  session,
+  onPress,
+}: {
+  session: SessionLog;
+  onPress: () => void;
+}) {
+  const logged = session.exercises.reduce((acc, e) => acc + e.sets.length, 0);
+  const total = session.exercises.reduce((acc, e) => acc + e.plannedSets, 0);
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.resumeCard, pressed && styles.resumeCardPressed]}
+    >
+      <Text style={styles.resumeEyebrow}>In progress</Text>
+      <Text style={styles.resumeTitle}>{session.sessionTitle}</Text>
+      <Text style={styles.resumeMeta}>
+        {logged}/{total} sets logged · tap to resume
+      </Text>
+    </Pressable>
   );
 }
 
@@ -393,5 +435,35 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontWeight: "700",
     letterSpacing: 0.3,
+  },
+  resumeCard: {
+    backgroundColor: colors.accent,
+    padding: 20,
+    borderRadius: 16,
+  },
+  resumeCardPressed: {
+    backgroundColor: colors.accentPressed,
+  },
+  resumeEyebrow: {
+    color: colors.text,
+    fontSize: 12,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    fontWeight: "800",
+    opacity: 0.8,
+  },
+  resumeTitle: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: "900",
+    marginTop: 6,
+    letterSpacing: -0.3,
+  },
+  resumeMeta: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "700",
+    marginTop: 10,
+    opacity: 0.85,
   },
 });

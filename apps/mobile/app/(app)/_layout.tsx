@@ -14,6 +14,7 @@ export default function AppLayout() {
       <Stack.Screen name="index" options={{ title: "mAI.fitness" }} />
       <Stack.Screen name="onboarding" options={{ title: "Discovery", headerBackTitle: "" }} />
       <Stack.Screen name="plan" options={{ title: "Your plan", headerBackTitle: "" }} />
+      <Stack.Screen name="session" options={{ title: "Session", headerBackTitle: "" }} />
     </Stack>
   );
 }

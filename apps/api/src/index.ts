@@ -5,6 +5,7 @@ import { authRoutes } from "./routes/auth.js";
 import { chatRoutes } from "./routes/chat.js";
 import { meRoutes } from "./routes/me.js";
 import { profileRoutes } from "./routes/profile.js";
+import { sessionsRoutes } from "./routes/sessions.js";
 import { workoutsRoutes } from "./routes/workouts.js";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -33,6 +34,7 @@ app.route("/me", meRoutes);
 app.route("/me/profile", profileRoutes);
 app.route("/chat", chatRoutes);
 app.route("/workouts", workoutsRoutes);
+app.route("/sessions", sessionsRoutes);
 
 app.onError((err, c) => {
   console.error("Unhandled error:", err);
