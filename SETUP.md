@@ -192,9 +192,38 @@ cd apps/api
 npx wrangler d1 migrations apply mai-db --remote
 ```
 
+## 10. Personal / Collaborative Deployments
+
+If you want to deploy your own instance of mAI.fitness.pro with your own DB and AI model preferences:
+
+1. **Create your own D1 Database:**
+   ```bash
+   npx wrangler d1 create mai-db-personal
+   ```
+   Copy the `database_id` from the output.
+
+2. **Configure your Environment:**
+   Uncomment and edit the `[env.personal]` block in `apps/api/wrangler.toml`. Use your new `database_id` and preferred `AI_MODEL_*` IDs.
+
+3. **Deploy to your environment:**
+   ```bash
+   cd apps/api
+   npx wrangler deploy --env personal
+   ```
+
+4. **Set your own secrets:**
+   Secrets are environment-specific. You must set them for `personal`:
+   ```bash
+   npx wrangler secret put ANTHROPIC_API_KEY --env personal
+   npx wrangler secret put JWT_SECRET --env personal
+   ```
+
+5. **Update Mobile App:**
+   In `apps/mobile/.env`, update `EXPO_PUBLIC_API_URL` to point to your new worker URL (usually `https://mai-fitness-api-custom.<your-subdomain>.workers.dev`).
+
 ---
 
-## 9. What's next
+## 11. What's next
 
 Refer to `ROADMAP.md` for the prioritised next-work list, which rolls up:
 - Identified weaknesses from the latest code review

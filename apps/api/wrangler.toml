@@ -23,3 +23,17 @@ AI_MODEL_PLANNING = "anthropic/claude-sonnet-4-6"
 # Observability
 [observability]
 enabled = true
+
+# Personal/Custom Deployment Template
+# Usage: npx wrangler deploy --env personal
+# [env.personal]
+# name = "mai-fitness-api-custom"
+# [[env.personal.d1_databases]]
+# binding = "DB"
+# database_name = "mai-db-custom"
+# database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+# [env.personal.vars]
+# GOOGLE_CLIENT_ID = "REPLACE_WITH_YOUR_WEB_CLIENT_ID"
+# ALLOWED_ORIGINS = "http://localhost:8081,https://your-custom-domain.com"
+# AI_MODEL_CHAT = "openai/gpt-4o-mini"
+# AI_MODEL_PLANNING = "openai/gpt-4o"
