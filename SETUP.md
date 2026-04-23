@@ -53,31 +53,32 @@ The app signs users in with Google. You need three OAuth 2.0 Client IDs in the *
 
 ## 3. Configure the Worker (`apps/api`)
 
-Edit `apps/api/wrangler.toml`:
+The Worker needs a few environment variables. **Do not edit `wrangler.toml` for local development**; instead, use `.dev.vars`.
 
-```toml
-[vars]
-GOOGLE_CLIENT_ID = "your-web-client-id.apps.googleusercontent.com"  # the Web client from step 2
-ALLOWED_ORIGINS = "http://localhost:8081,http://localhost:19006,https://auth.expo.io"
-```
+1. Create `apps/api/.dev.vars` (this file is gitignored):
+   ```bash
+   touch apps/api/.dev.vars
+   ```
 
-Create `apps/api/.dev.vars` (gitignored) from the template:
+2. Add your Google Web Client ID and a JWT secret:
+   ```text
+   GOOGLE_CLIENT_ID = "your-web-client-id-from-step-2.apps.googleusercontent.com"
+   JWT_SECRET = "any-random-string-at-least-32-chars"
+   ```
 
-```bash
-cp apps/api/.dev.vars.example apps/api/.dev.vars
-```
+3. (Optional) If you want to use OpenAI or a different model locally:
+   ```text
+   AI_MODEL_CHAT = "openai/gpt-4o-mini"
+   OPENAI_API_KEY = "sk-..."
+   ```
 
-Set `JWT_SECRET` to a random string ≥ 32 bytes (e.g. `openssl rand -hex 32`).
-
-Apply the D1 migrations locally:
-
-```bash
-npm run migrate:local -w @mai/api
-```
+4. Apply the D1 migrations locally:
+   ```bash
+   npm run migrate:local
+   ```
+   *Note: If you are in the root directory, you can run `npm run migrate:local` directly.*
 
 This creates a local SQLite database at `apps/api/.wrangler/state/v3/d1/` with the `users` table.
-
-> **Note on `database_id`:** `wrangler.toml` contains the deployed prod D1 id (`7ff735b0-89fc-4534-91aa-e5851f6de505`). Local wrangler dev uses the same `database_name` → its own local SQLite, so the remote id being set doesn't affect you locally.
 
 ---
 
@@ -91,11 +92,11 @@ cp apps/mobile/.env.example apps/mobile/.env
 
 Fill in all four vars:
 
-```
+```text
 EXPO_PUBLIC_API_URL=http://localhost:8787
-EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS=...apps.googleusercontent.com
-EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID=...apps.googleusercontent.com
-EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB=...apps.googleusercontent.com
+EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS=...
+EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID=...
+EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB=... (This must match the GOOGLE_CLIENT_ID in .dev.vars)
 ```
 
 > **Testing on a physical device?** Replace `localhost` with your machine's LAN IP (e.g. `http://192.168.1.10:8787`), and add that origin to `ALLOWED_ORIGINS` in `wrangler.toml`.
@@ -107,20 +108,16 @@ EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB=...apps.googleusercontent.com
 Two terminals, both in the repo root.
 
 **Terminal 1 — Worker:**
-
 ```bash
 npm run dev:api
 ```
-
-→ Worker on `http://localhost:8787`. Verify: `curl http://localhost:8787/health` returns `{"ok":true}`.
+→ Worker on `http://localhost:8787`.
 
 **Terminal 2 — Expo:**
-
 ```bash
 npm run dev:mobile
 ```
-
-→ scan the QR code with Expo Go, or press `w` to open in a browser.
+→ Press `w` to open in a browser, or scan the QR code with Expo Go.
 
 ---
 
@@ -128,14 +125,13 @@ npm run dev:mobile
 
 1. Tap **Continue with Google** on the sign-in screen.
 2. Complete OAuth in the browser popup.
-3. The app should land on the home screen showing your email.
+3. The app should land on the onboarding chat screen.
 4. Verify the DB row:
    ```bash
-   cd apps/api
-   npx wrangler d1 execute mai-db --local --command "SELECT id, email, google_sub FROM users;"
+   npx wrangler d1 execute mai-db --local --command "SELECT email FROM users;" --config apps/api/wrangler.toml
    ```
-5. Kill and relaunch Expo — you should remain signed in (JWT is persisted in `expo-secure-store`).
-6. Tap **Sign out** — you should land back on the sign-in screen. Relaunch confirms you're still signed out.
+5. Kill and relaunch Expo — you should remain signed in (JWT is persisted in `localStorage` for web or `SecureStore` for native).
+6. Tap **Sign out** (if implemented) or clear site data to reset.
 
 If the OAuth redirect loops or you get a `redirect_uri_mismatch`, double-check that the redirect URI in the Google Cloud Console Web client matches exactly what Expo reports in the terminal (usually printed when you first attempt sign-in).
 
