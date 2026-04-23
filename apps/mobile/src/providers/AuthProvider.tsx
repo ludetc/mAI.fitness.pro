@@ -69,16 +69,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithIdToken = useCallback(
     async (idToken: string) => {
-      const body: AuthGoogleRequest = { idToken };
-      const res = await api<AuthGoogleResponse>("/auth/google", {
-        method: "POST",
-        body: JSON.stringify(body),
-        auth: false,
-      });
-      await setToken(res.token);
-      setUser(res.user);
-      await loadProfile();
-      setStatus("signedIn");
+      console.log("AuthProvider: Attempting sign-in with ID token");
+      try {
+        const body: AuthGoogleRequest = { idToken };
+        const res = await api<AuthGoogleResponse>("/auth/google", {
+          method: "POST",
+          body: JSON.stringify(body),
+          auth: false,
+        });
+        console.log("AuthProvider: Sign-in successful, setting token");
+        await setToken(res.token);
+        setUser(res.user);
+        await loadProfile();
+        setStatus("signedIn");
+      } catch (err) {
+        console.error("AuthProvider: Sign-in failed", err);
+        throw err;
+      }
     },
     [loadProfile],
   );

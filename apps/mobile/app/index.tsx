@@ -18,16 +18,21 @@ export default function SignInScreen() {
   const [pending, setPending] = useState(false);
 
   const onPress = async () => {
+    console.log("SignInScreen: button pressed, ready:", ready);
     if (!ready || pending) return;
     setPending(true);
     try {
+      console.log("SignInScreen: calling promptAsync...");
       const tokens = await promptAsync();
+      console.log("SignInScreen: promptAsync result:", tokens ? "got tokens" : "no tokens");
       if (!tokens) {
         setPending(false);
         return;
       }
       await signInWithIdToken(tokens.idToken);
+      console.log("SignInScreen: signInWithIdToken complete");
     } catch (err) {
+      console.error("SignInScreen: error during sign-in", err);
       const message = err instanceof Error ? err.message : "sign-in failed";
       Alert.alert("Sign-in failed", message);
     } finally {
