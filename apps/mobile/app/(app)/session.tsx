@@ -48,6 +48,7 @@ export default function SessionScreen() {
   const [loading, setLoading] = useState(true);
   const [finishing, setFinishing] = useState(false);
   const [adjustOpen, setAdjustOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [restSecondsLeft, setRestSecondsLeft] = useState(0);
 
   const persistedExercisesRef = useRef<ExerciseLog[] | null>(null);
@@ -226,6 +227,7 @@ export default function SessionScreen() {
 
         <ExerciseFocus
           exercise={current}
+          onPreview={() => setPreviewOpen(true)}
           onSwap={() => setAdjustOpen(true)}
           onSkip={skipExercise}
         />
@@ -280,7 +282,48 @@ export default function SessionScreen() {
         originalName={current.name}
         onAccept={(suggestion) => applyAdjust(suggestion, current.name)}
       />
+      <PreviewModal
+        visible={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        exerciseName={current.name}
+      />
     </KeyboardAvoidingView>
+  );
+}
+
+function PreviewModal({
+  visible,
+  onClose,
+  exerciseName,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  exerciseName: string;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.modalBackdrop} onPress={onClose} />
+      <View style={styles.previewContainer}>
+        <View style={styles.previewCard}>
+          <Text style={styles.previewEyebrow}>Exercise Preview</Text>
+          <Text style={styles.previewTitle}>{exerciseName}</Text>
+          <View style={styles.previewBody}>
+            <Text style={styles.previewStep}>1. Maintain tight core.</Text>
+            <Text style={styles.previewStep}>2. Control the eccentric phase.</Text>
+            <Text style={styles.previewStep}>3. Focus on the target muscle.</Text>
+            <Text style={styles.previewMeta}>
+              (Visual previews coming soon in Phase 8)
+            </Text>
+          </View>
+          <Pressable
+            onPress={onClose}
+            style={({ pressed }) => [styles.primary, pressed && styles.primaryPressed]}
+          >
+            <Text style={styles.primaryText}>Got it</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -315,10 +358,12 @@ function RestTimerBanner({
 
 function ExerciseFocus({
   exercise,
+  onPreview,
   onSwap,
   onSkip,
 }: {
   exercise: ExerciseLog;
+  onPreview: () => void;
   onSwap: () => void;
   onSkip: () => void;
 }) {
@@ -332,7 +377,21 @@ function ExerciseFocus({
         <Text style={styles.substituted}>swapped from {exercise.substitutedFor}</Text>
       ) : null}
       {exercise.notes ? <Text style={styles.focusNotes}>{exercise.notes}</Text> : null}
+
+      {exercise.coachFeedback ? (
+        <View style={styles.coachBox}>
+          <Text style={styles.coachTitle}>Coach</Text>
+          <Text style={styles.coachText}>{exercise.coachFeedback}</Text>
+        </View>
+      ) : null}
+
       <View style={styles.focusActions}>
+        <Pressable
+          onPress={onPreview}
+          style={({ pressed }) => [styles.ghost, pressed && styles.ghostPressed]}
+        >
+          <Text style={styles.ghostText}>Preview</Text>
+        </Pressable>
         <Pressable
           onPress={onSwap}
           style={({ pressed }) => [styles.ghost, pressed && styles.ghostPressed]}
@@ -841,6 +900,28 @@ const styles = StyleSheet.create({
     marginTop: 8,
     lineHeight: 19,
   },
+  coachBox: {
+    backgroundColor: colors.surface,
+    padding: 12,
+    borderRadius: 10,
+    marginTop: 14,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.accent,
+  },
+  coachTitle: {
+    color: colors.accent,
+    fontSize: 10,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    fontWeight: "900",
+    marginBottom: 4,
+  },
+  coachText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "700",
+    lineHeight: 18,
+  },
   focusActions: {
     flexDirection: "row",
     gap: 10,
@@ -994,7 +1075,52 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
+    backgroundColor: "rgba(0,0,0,0.8)",
+  },
+  previewContainer: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+  },
+  previewCard: {
+    backgroundColor: colors.bg,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 24,
+    width: "100%",
+    maxWidth: 400,
+    gap: 16,
+  },
+  previewEyebrow: {
+    color: colors.accent,
+    fontSize: 12,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    fontWeight: "900",
+  },
+  previewTitle: {
+    color: colors.text,
+    fontSize: 24,
+    fontWeight: "900",
+    letterSpacing: -0.4,
+  },
+  previewBody: {
+    gap: 10,
+    marginVertical: 8,
+  },
+  previewStep: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "700",
+    lineHeight: 22,
+  },
+  previewMeta: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontStyle: "italic",
+    marginTop: 8,
   },
   sheet: {
     backgroundColor: colors.bg,

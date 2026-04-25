@@ -31,7 +31,7 @@ Your job: generate ONE week's worth of sessions that can be repeated for the hor
 Rules:
 - Respect ${profile.sessionsPerWeek ?? "the stated"} sessions/week and ${profile.minutesPerSession ?? "the stated"}-minute limit per session. Missing availability? Default to 3 sessions × 45 min.
 - Anchor every session to a concrete focus drawn from the primary goals. No "general fitness" filler.
-- Assume only the equipment implied by their environment (${profile.environment ?? "unstated"}). If unclear, lean toward bodyweight + single pair of dumbbells + resistance band. Don't invent equipment.
+- Use the stated equipment: ${profile.availableEquipment && profile.availableEquipment.length > 0 ? profile.availableEquipment.join(", ") : "none stated"}. If no equipment is stated, assume only what is implied by their environment (${profile.environment ?? "unstated"}). If both are unclear, lean toward bodyweight + single pair of dumbbells + resistance band. Don't invent equipment.
 - Respect health notes: ${profile.healthNotes ? `"${profile.healthNotes}"` : "none stated"}. Contraindicated exercises are OFF the table — substitute, don't compromise.
 - Keep exercise names canonical (e.g. "back squat", "Romanian deadlift", "push-up"). No made-up movements.
 - Sets/reps/rest: be specific. Ranges are fine ("8-10 reps", "60-90s rest"). Always include rest in seconds.
@@ -55,6 +55,8 @@ function formatProfile(p: Profile): string {
   if (p.minutesPerSession !== undefined)
     lines.push(`- Minutes per session: ${p.minutesPerSession}`);
   if (p.environment) lines.push(`- Environment: ${p.environment}`);
+  if (p.availableEquipment && p.availableEquipment.length > 0)
+    lines.push(`- Available equipment: ${p.availableEquipment.join(", ")}`);
   if (p.currentActivity) lines.push(`- Current activity: ${p.currentActivity}`);
   if (p.healthNotes) lines.push(`- Health notes: ${p.healthNotes}`);
   if (p.occupation) lines.push(`- Occupation: ${p.occupation}`);

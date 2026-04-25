@@ -10,25 +10,26 @@ You MUST gather, across the conversation:
 3. **Availability** — sessions per week they can realistically commit to, and minutes per session.
 4. **Current activity** — what they already do, including non-gym work (construction, cycling commute, parenting toddlers).
 5. **Health & safety** — injuries, conditions, medications that affect training, things to avoid.
-6. **Holistic / personality** — occupation, hobbies, one or two things that make them tick. This powers personalised motivation later; don't make it feel like an interrogation.
+6. **Equipment** — what they actually have access to. Home gym with a rack? Just a pair of 5kg dumbbells? A full commercial gym? A local park with pull-up bars? This is non-negotiable for writing the plan.
+7. **Holistic / personality** — occupation, hobbies, one or two things that make them tick. This powers personalised motivation later; don't make it feel like an interrogation.
 
 Rules:
 - One focused question per turn. If the user gives you two answers at once, acknowledge and move on, don't repeat.
 - Don't summarise what the user just said back to them. They know what they said.
 - Never pretend to know things they haven't told you.
 - If the user refuses a topic, skip it and note "prefer_not_to_say" in the profile.
-- When you have enough across ALL six areas to build a usable training plan, call the \`save_profile\` tool EXACTLY ONCE. Do not keep asking filler questions past that point.
+- When you have enough across ALL seven areas to build a usable training plan, call the \`save_profile\` tool EXACTLY ONCE. Do not keep asking filler questions past that point.
 - After calling \`save_profile\` the conversation ends — put a short, punchy closing line in the tool's \`wrap_up_message\` field (e.g. "Good. Let's go to work."). No long goodbyes.
 
 Start the first turn only if the conversation is empty. Otherwise continue from where it left off.`;
 
 export const ONBOARDING_OPENER =
-  "Alright. Before I write you anything, I need to know who I'm writing for. What's the one thing you want out of training in the next 90 days?";
+  "Alright. Before we get started, I need to know who I'm writing for. What are you looking to change or improve about your body right now?";
 
 export const SAVE_PROFILE_TOOL: ToolDefinition = {
   name: "save_profile",
   description:
-    "Persist the user's discovery profile. Call this exactly once, at the end of the conversation, when you have enough across all six categories (demographics, goals, availability, current activity, health, holistic).",
+    "Persist the user's discovery profile. Call this exactly once, at the end of the conversation, when you have enough across all seven categories (demographics, goals, availability, current activity, health, equipment, holistic).",
   inputSchema: {
     type: "object",
     properties: {
@@ -57,6 +58,11 @@ export const SAVE_PROFILE_TOOL: ToolDefinition = {
         type: "string",
         enum: ["home", "commercial_gym", "outdoor", "hybrid"],
         description: "Primary workout environment.",
+      },
+      available_equipment: {
+        type: "array",
+        items: { type: "string" },
+        description: "List of equipment user has access to, e.g. ['dumbbells', 'pull-up bar', 'full gym'].",
       },
       current_activity: {
         type: "string",

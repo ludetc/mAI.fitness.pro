@@ -9,6 +9,7 @@ export interface Profile {
   sessionsPerWeek?: number;
   minutesPerSession?: number;
   environment?: "home" | "commercial_gym" | "outdoor" | "hybrid";
+  availableEquipment?: string[];
   currentActivity?: string;
   healthNotes?: string;
   occupation?: string;

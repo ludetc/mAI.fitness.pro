@@ -273,6 +273,9 @@ function ProfileSummary({ profile }: { profile: Profile }) {
         />
       )}
       {profile.environment && <Row label="Environment" value={labelForEnv(profile.environment)} />}
+      {profile.availableEquipment && profile.availableEquipment.length > 0 && (
+        <Row label="Equipment" value={profile.availableEquipment.join(" · ")} />
+      )}
       {profile.currentActivity && <Row label="Current activity" value={profile.currentActivity} />}
       {profile.healthNotes && <Row label="Health notes" value={profile.healthNotes} />}
     </View>

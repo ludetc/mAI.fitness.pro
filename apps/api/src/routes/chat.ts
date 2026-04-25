@@ -174,6 +174,10 @@ function toolInputToProfile(input: Record<string, unknown>): Profile {
   ) {
     profile.environment = input.environment as Profile["environment"];
   }
+  if (Array.isArray(input.available_equipment))
+    profile.availableEquipment = input.available_equipment.filter(
+      (e): e is string => typeof e === "string",
+    );
   if (typeof input.current_activity === "string") profile.currentActivity = input.current_activity;
   if (typeof input.health_notes === "string") profile.healthNotes = input.health_notes;
   if (typeof input.occupation === "string") profile.occupation = input.occupation;

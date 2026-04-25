@@ -1,4 +1,4 @@
-import type { Exercise } from "@mai/shared";
+import type { Exercise, ExerciseLog } from "@mai/shared";
 import type { ToolDefinition } from "../lib/ai/index.js";
 
 export function buildAdjustSystemPrompt(args: {
@@ -41,5 +41,46 @@ export const SUGGEST_ALTERNATIVE_TOOL: ToolDefinition = {
       },
     },
     required: ["name", "sets", "reps", "rest_seconds", "rationale"],
+  },
+};
+
+export function buildCoachFeedbackSystemPrompt(args: {
+  exercise: ExerciseLog;
+  sessionTitle: string;
+  sessionFocus: string;
+}): string {
+  const setsStr = args.exercise.sets
+    .map(
+      (s, i) =>
+        `Set ${i + 1}: ${s.reps} reps${s.weightKg ? ` @ ${s.weightKg}kg` : ""}${s.rpe ? ` (RPE ${s.rpe})` : ""}`,
+    )
+    .join("\n");
+
+  return `You are the mAI.fitness real-time coach. The athlete just finished some sets of "${args.exercise.name}" during the "${args.sessionTitle}" session (${args.sessionFocus}).
+
+Target: ${args.exercise.plannedSets} × ${args.exercise.plannedReps}
+Actual performance:
+${setsStr}
+
+Your job:
+1. Provide a short, gritty, high-signal feedback line (1 sentence) about their effort.
+2. If they struggled (e.g. RPE 9-10, reps dropped significantly below target), suggest a small adjustment for the NEXT sets of this exercise or the next exercise (e.g. "Back off 5kg on the next one to keep form tight").
+3. If they crushed it (e.g. RPE < 7, reps above target), give a sharp nod or tell them to bump it up.
+
+Call give_feedback EXACTLY ONCE. No extra text.`;
+}
+
+export const COACH_FEEDBACK_TOOL: ToolDefinition = {
+  name: "give_feedback",
+  description: "Provide feedback and real-time adjustments based on the athlete's performance.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      feedback: {
+        type: "string",
+        description: "One short, punchy sentence of feedback or adjustment instruction.",
+      },
+    },
+    required: ["feedback"],
   },
 };

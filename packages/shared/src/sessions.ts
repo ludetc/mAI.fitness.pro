@@ -15,6 +15,7 @@ export interface ExerciseLog {
   skipped?: boolean;
   substitutedFor?: string;
   notes?: string;
+  coachFeedback?: string;
 }
 
 export interface SessionLog {

@@ -29,6 +29,8 @@ import {
 } from "../lib/db.js";
 import {
   buildAdjustSystemPrompt,
+  buildCoachFeedbackSystemPrompt,
+  COACH_FEEDBACK_TOOL,
   SUGGEST_ALTERNATIVE_TOOL,
 } from "../prompts/adjust.js";
 
@@ -125,14 +127,53 @@ sessionsRoutes.put("/:id", async (c) => {
   if (!existing) return c.json({ error: "not_found" }, 404);
   if (existing.completedAt) return c.json({ error: "already_completed" }, 409);
 
-  const notes = typeof body.notes === "string" ? body.notes : null;
-  await updateSessionLogExercises(c.env.DB, user.id, id, body.exercises, notes);
-
-  const updated = await getSessionLog(c.env.DB, user.id, id);
-  if (!updated) return c.json({ error: "not_found" }, 404);
-  const envelope = await hydrateEnvelope(c.env.DB, user.id, updated);
+  const envelope = await hydrateEnvelope(c.env.DB, user.id, existing);
   if (!envelope) return c.json({ error: "plan_not_found" }, 404);
-  return c.json<UpdateSessionResponse>(envelope);
+
+  const notes = typeof body.notes === "string" ? body.notes : null;
+
+  // Real-time adaptation: if we're logging a new set, we might want to generate feedback.
+  // We compare body.exercises with existing.exercises to see if a set was added.
+  const updatedExercises = [...body.exercises];
+
+  for (let i = 0; i < updatedExercises.length; i++) {
+    const newEx = updatedExercises[i];
+    const oldEx = existing.exercises[i];
+    if (newEx && oldEx && newEx.sets.length > oldEx.sets.length && !newEx.coachFeedback) {
+      // New set logged for this exercise!
+      let provider;
+      try {
+        provider = getProvider(c.env, "chat");
+        const result = await provider.chat({
+          system: buildCoachFeedbackSystemPrompt({
+            exercise: newEx,
+            sessionTitle: existing.sessionTitle,
+            sessionFocus: envelope.plannedSession.focus,
+          }),
+          messages: [{ role: "user", content: "Give me feedback on these sets." }],
+          tools: [COACH_FEEDBACK_TOOL],
+          toolChoice: { name: COACH_FEEDBACK_TOOL.name },
+          temperature: 0.7,
+          maxTokens: 200,
+        });
+        const call = result.toolCalls.find((tc) => tc.name === COACH_FEEDBACK_TOOL.name);
+        if (call && typeof call.input.feedback === "string") {
+          newEx.coachFeedback = call.input.feedback;
+        }
+      } catch {
+        // AI feedback is non-critical, skip if it fails.
+      }
+      break; // Only generate feedback for one exercise at a time to keep it snappy.
+    }
+  }
+
+  await updateSessionLogExercises(c.env.DB, user.id, id, updatedExercises, notes);
+
+  const finalUpdated = await getSessionLog(c.env.DB, user.id, id);
+  if (!finalUpdated) return c.json({ error: "not_found" }, 404);
+  const finalEnvelope = await hydrateEnvelope(c.env.DB, user.id, finalUpdated);
+  if (!finalEnvelope) return c.json({ error: "plan_not_found" }, 404);
+  return c.json<UpdateSessionResponse>(finalEnvelope);
 });
 
 sessionsRoutes.post("/:id/complete", async (c) => {

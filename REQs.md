@@ -14,6 +14,7 @@ mAI.fitness.pro is an interactive, AI-first fitness companion that builds deep p
     - **Availability:** Time commitment per day/week.
     - **Current Activity:** Existing exercise routines or physical labor.
     - **Health & Safety:** Health issues, injuries, or physical concerns.
+    - **Equipment:** Available tools (Home gym, dumbbells, commercial gym, outdoor bars, etc.).
     - **Holistic Profile:** "Unrelated" personal data including occupation, hobbies, and interesting personal facts to build a psychological profile for better motivation.
 
 ## 3. Planning & Equipment
